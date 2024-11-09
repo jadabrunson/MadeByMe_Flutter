@@ -301,7 +301,7 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Color(0xFFF6E6CC),
         selectedItemColor: Color(0xFFE17055),
         unselectedItemColor: Color(0xFF8D6E63),
-        currentIndex: 0, // Set initial index to Home page
+        currentIndex: 0,
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -315,12 +315,18 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.photo_album),
             label: "Gallery",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.video_library),
+            label: "Reels",
+          ),
         ],
         onTap: (index) {
           if (index == 1) {
             _navigateTo('/leaderboard');
           } else if (index == 2) {
-            _navigateTo('/gallery'); // Navigate to Gallery page
+            _navigateTo('/gallery');
+          } else if (index == 3) {
+            _navigateTo('/reels');
           }
         },
       ),

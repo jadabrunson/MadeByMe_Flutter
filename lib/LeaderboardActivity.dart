@@ -30,7 +30,6 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
         final data = Map<String, dynamic>.from(event.snapshot.value as Map);
         List<Map<String, dynamic>> fetchedData = [];
 
-        // Extract users' max streak counts and emails
         data.forEach((uid, userData) {
           if (userData["streaks"] != null) {
             String email = userData["email"] ?? "Unknown";
@@ -40,10 +39,8 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
           }
         });
 
-        // Sort by max streak count in descending order
         fetchedData.sort((a, b) => b["maxStreak"].compareTo(a["maxStreak"]));
 
-        // Determine user's rank
         int position = 1;
         bool userFound = false;
         for (var entry in fetchedData) {
@@ -71,7 +68,6 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
     }
   }
 
-  // Utility function to get username from email
   String getUsernameFromEmail(String email) {
     return email.contains("@") ? email.split("@")[0] : email;
   }
@@ -84,10 +80,10 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFFF8E7), // Warm Ivory
+      backgroundColor: Color(0xFFFFF8E7),
       appBar: AppBar(
         title: Text("Leaderboard"),
-        backgroundColor: Color(0xFFE17055), // Burnt Orange
+        backgroundColor: Color(0xFFE17055),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
@@ -104,7 +100,7 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF5D4037), // Deep Brown
+                color: Color(0xFF5D4037),
               ),
               textAlign: TextAlign.center,
             ),
@@ -113,10 +109,10 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: 80.0), // Space above the bottom navigation bar
+                padding: EdgeInsets.only(bottom: 80.0),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Color(0xFFF6E6CC), // Light Almond
+                    color: Color(0xFFF6E6CC),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(
@@ -126,13 +122,13 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
                         padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Color(0xFFFFF8E7), // Warm Ivory
+                            color: Color(0xFFFFF8E7),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Color(0xFFE17055)), // Burnt Orange border
+                            border: Border.all(color: Color(0xFFE17055)),
                           ),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: Color(0xFFE17055), // Burnt Orange
+                              backgroundColor: Color(0xFFE17055),
                               child: Text(
                                 "${index + 1}",
                                 style: TextStyle(color: Colors.white),
@@ -140,11 +136,11 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
                             ),
                             title: Text(
                               "${getUsernameFromEmail(entry['email'])}",
-                              style: TextStyle(fontSize: 18, color: Color(0xFF5D4037), fontWeight: FontWeight.w500), // Deep Brown
+                              style: TextStyle(fontSize: 18, color: Color(0xFF5D4037), fontWeight: FontWeight.w500),
                             ),
                             subtitle: Text(
                               "${entry['maxStreak']} days",
-                              style: TextStyle(fontSize: 16, color: Color(0xFF8D6E63)), // Soft Brown
+                              style: TextStyle(fontSize: 16, color: Color(0xFF8D6E63)),
                             ),
                           ),
                         ),
@@ -158,10 +154,10 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color(0xFFF6E6CC), // Light Almond
-        selectedItemColor: Color(0xFFE17055), // Burnt Orange
-        unselectedItemColor: Color(0xFF8D6E63), // Soft Brown
-        currentIndex: 1, // Set the current index to 1 for the leaderboard page
+        backgroundColor: Color(0xFFF6E6CC),
+        selectedItemColor: Color(0xFFE17055),
+        unselectedItemColor: Color(0xFF8D6E63),
+        currentIndex: 1,
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -175,12 +171,18 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
             icon: Icon(Icons.photo_album),
             label: "Gallery",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.video_library),
+            label: "Reels",
+          ),
         ],
         onTap: (index) {
           if (index == 0) {
-            Navigator.pushReplacementNamed(context, '/main'); // Navigate to Home page
+            Navigator.pushReplacementNamed(context, '/main');
           } else if (index == 2) {
-            Navigator.pushReplacementNamed(context, '/gallery'); // Navigate to Gallery page
+            Navigator.pushReplacementNamed(context, '/gallery');
+          } else if (index == 3) {
+            Navigator.pushReplacementNamed(context, '/reels');
           }
         },
       ),

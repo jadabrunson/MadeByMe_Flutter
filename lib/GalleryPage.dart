@@ -104,12 +104,18 @@ class _GalleryPageState extends State<GalleryPage> {
             icon: Icon(Icons.photo_album),
             label: "Gallery",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.video_library),
+            label: "Reels",
+          ),
         ],
         onTap: (index) {
           if (index == 0) {
             Navigator.pushReplacementNamed(context, '/main'); // Navigate to Home page
           } else if (index == 1) {
             Navigator.pushReplacementNamed(context, '/leaderboard'); // Navigate to Leaderboard page
+          } else if (index == 3) {
+            Navigator.pushReplacementNamed(context, '/reels'); // Navigate to Reels page
           }
         },
       ),

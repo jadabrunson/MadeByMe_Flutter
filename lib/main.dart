@@ -4,6 +4,7 @@ import 'LoginActivity.dart';
 import 'main_screen.dart';
 import 'LeaderboardActivity.dart';
 import 'GalleryPage.dart'; // Import the gallery page
+import 'ReelsPage.dart'; // Import the reels page
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +34,8 @@ class MyApp extends StatelessWidget {
         '/': (context) => LoginActivity(),
         '/main': (context) => MainScreen(),
         '/leaderboard': (context) => LeaderboardActivity(),
-        '/gallery': (context) => GalleryPage(), // New route for the gallery page
+        '/gallery': (context) => GalleryPage(), // Route for the gallery page
+        '/reels': (context) => ReelsPage(), // Route for the reels page
       },
     );
   }
