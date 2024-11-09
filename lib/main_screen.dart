@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
@@ -14,6 +15,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child("users");
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
   User? currentUser;
   File? _imageFile;
   int streakCount = 0;
@@ -48,7 +51,7 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  Future<void> _updateStreak() async {
+  Future<void> _updateStreak(String? imageUrl) async {
     try {
       DateTime today = DateTime.now();
       if (lastUploadDate != null) {
@@ -68,7 +71,9 @@ class _MainScreenState extends State<MainScreen> {
         maxStreak = streakCount;
       }
 
-      await _databaseRef.child(currentUser!.uid).set({
+      String imageKey = _databaseRef.child(currentUser!.uid).child("images").push().key!;
+
+      await _databaseRef.child(currentUser!.uid).update({
         "email": currentUser!.email,
         "streaks": {
           "currentStreak": streakCount,
@@ -76,6 +81,13 @@ class _MainScreenState extends State<MainScreen> {
           "lastUploadDate": DateFormat('yyyy-MM-dd').format(today),
         }
       });
+
+      if (imageUrl != null) {
+        await _databaseRef.child(currentUser!.uid).child("images").child(imageKey).set({
+          "url": imageUrl,
+          "uploadedAt": DateFormat('yyyy-MM-dd HH:mm:ss').format(today),
+        });
+      }
 
       setState(() {});
     } catch (e) {
@@ -88,7 +100,7 @@ class _MainScreenState extends State<MainScreen> {
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
-        verificationFailed = false; // Reset verification fail message
+        verificationFailed = false;
       });
     }
   }
@@ -112,7 +124,9 @@ class _MainScreenState extends State<MainScreen> {
           SnackBar(content: Text("Verified as home-cooked food. Streak updated!")),
         );
 
-        await _updateStreak();
+        String imageUrl = await _uploadImageToFirebase(_imageFile!);
+
+        await _updateStreak(imageUrl);
         setState(() {
           _imageFile = null;
           isUploading = false;
@@ -137,6 +151,18 @@ class _MainScreenState extends State<MainScreen> {
         isUploading = false;
         verificationFailed = false;
       });
+    }
+  }
+
+  Future<String> _uploadImageToFirebase(File image) async {
+    try {
+      String filePath = 'images/${currentUser!.uid}/${DateTime.now().toIso8601String()}.jpg';
+      final ref = _storage.ref().child(filePath);
+      await ref.putFile(image);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print("Error uploading image: $e");
+      return "";
     }
   }
 
@@ -275,6 +301,7 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: Color(0xFFF6E6CC),
         selectedItemColor: Color(0xFFE17055),
         unselectedItemColor: Color(0xFF8D6E63),
+        currentIndex: 0, // Set initial index to Home page
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -284,10 +311,16 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.leaderboard),
             label: "Leaderboard",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_album),
+            label: "Gallery",
+          ),
         ],
         onTap: (index) {
           if (index == 1) {
             _navigateTo('/leaderboard');
+          } else if (index == 2) {
+            _navigateTo('/gallery'); // Navigate to Gallery page
           }
         },
       ),
