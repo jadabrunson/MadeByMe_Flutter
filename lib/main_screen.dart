@@ -171,9 +171,18 @@ class _MainScreenState extends State<MainScreen> {
             ),
             SizedBox(height: 20),
             _imageFile != null
-                ? Image.file(_imageFile!)
-                : Text("No image selected.",
-                style: TextStyle(color: Colors.white70)),
+                ? Flexible(
+              child: Image.file(
+                _imageFile!,
+                fit: BoxFit.contain,
+                width: MediaQuery.of(context).size.width * 0.8,
+                height: MediaQuery.of(context).size.height * 0.4,
+              ),
+            )
+                : Text(
+              "No image selected.",
+              style: TextStyle(color: Colors.white70),
+            ),
             SizedBox(height: 20),
             if (isUploading)
               CircularProgressIndicator()
@@ -209,11 +218,11 @@ class _MainScreenState extends State<MainScreen> {
         unselectedItemColor: Colors.white70,
         items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.camera_alt),
+            icon: Icon(Icons.photo_camera), // Use the correct icon for Camera
             label: "Camera",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.leaderboard),
+            icon: Icon(Icons.leaderboard), // Use the correct icon for Leaderboard
             label: "Leaderboard",
           ),
         ],
