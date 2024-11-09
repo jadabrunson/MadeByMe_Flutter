@@ -154,10 +154,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF222831),
+      backgroundColor: Color(0xFFFFF8E7), // Warm Ivory
       appBar: AppBar(
         title: Text('Main Screen'),
-        backgroundColor: Color(0xFF222831),
+        backgroundColor: Color(0xFFE17055), // Burnt Orange
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
@@ -171,16 +171,16 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             Text(
               "Welcome, ${currentUser?.email ?? 'User'}",
-              style: TextStyle(color: Colors.white, fontSize: 18),
+              style: TextStyle(color: Color(0xFF5D4037), fontSize: 18), // Deep Brown
             ),
             SizedBox(height: 10),
             Text(
               "Current Streak: $streakCount days",
-              style: TextStyle(color: Colors.white70, fontSize: 16),
+              style: TextStyle(color: Color(0xFF8D6E63), fontSize: 16), // Soft Brown
             ),
             Text(
               "Max Streak: $maxStreak days",
-              style: TextStyle(color: Colors.white70, fontSize: 16),
+              style: TextStyle(color: Color(0xFF8D6E63), fontSize: 16), // Soft Brown
             ),
             SizedBox(height: 20),
             _imageFile != null
@@ -194,16 +194,17 @@ class _MainScreenState extends State<MainScreen> {
             )
                 : Text(
               "No image selected.",
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: Color(0xFF8D6E63)), // Soft Brown
             ),
             SizedBox(height: 20),
             if (isUploading)
-              CircularProgressIndicator()
+              CircularProgressIndicator(color: Color(0xFFE17055)) // Burnt Orange
             else ...[
               ElevatedButton(
                 onPressed: () => _pickImage(ImageSource.camera),
                 child: Text("Take Photo"),
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFE17055), // Burnt Orange
                   padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
                 ),
               ),
@@ -211,6 +212,7 @@ class _MainScreenState extends State<MainScreen> {
                 onPressed: () => _pickImage(ImageSource.gallery),
                 child: Text("Upload from Gallery"),
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFE17055), // Burnt Orange
                   padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
                 ),
               ),
@@ -218,6 +220,7 @@ class _MainScreenState extends State<MainScreen> {
                 onPressed: _verifyAndUploadImage,
                 child: Text("Verify"),
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFFE17055), // Burnt Orange
                   padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
                 ),
               ),
@@ -226,16 +229,16 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color(0xFF393E46),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
+        backgroundColor: Color(0xFFF6E6CC), // Light Almond
+        selectedItemColor: Color(0xFFE17055), // Burnt Orange
+        unselectedItemColor: Color(0xFF8D6E63), // Soft Brown
         items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.photo_camera), // Use the correct icon for Camera
+            icon: Icon(Icons.photo_camera),
             label: "Camera",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.leaderboard), // Use the correct icon for Leaderboard
+            icon: Icon(Icons.leaderboard),
             label: "Leaderboard",
           ),
         ],

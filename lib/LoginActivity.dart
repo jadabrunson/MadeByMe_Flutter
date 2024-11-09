@@ -96,10 +96,10 @@ class _LoginActivityState extends State<LoginActivity> {
         password: password,
       );
 
-      // Confirm registration success
+      // Automatically log in after successful registration
       if (userCredential.user != null) {
-        _showMessage("Registration successful. Please log in.");
-        _toggleMode(); // Switch to Sign In mode after successful registration
+        _showMessage("Registration successful!");
+        Navigator.pushReplacementNamed(context, '/main');
       }
     } on FirebaseAuthException catch (e) {
       String errorMessage;
@@ -127,7 +127,7 @@ class _LoginActivityState extends State<LoginActivity> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF222831),
+      backgroundColor: Color(0xFFFFF8E7), // Warm Ivory
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -138,8 +138,8 @@ class _LoginActivityState extends State<LoginActivity> {
               Text(
                 'Welcome!',
                 style: TextStyle(
-                  fontSize: 24,
-                  color: Colors.white,
+                  fontSize: 26,
+                  color: Color(0xFF5D4037), // Deep Brown
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
@@ -147,7 +147,7 @@ class _LoginActivityState extends State<LoginActivity> {
               SizedBox(height: 8),
               Text(
                 _isSignUpMode ? 'Sign up to get started' : 'Sign in to continue',
-                style: TextStyle(fontSize: 16, color: Colors.white70),
+                style: TextStyle(fontSize: 16, color: Color(0xFF8D6E63)), // Soft Brown
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 32),
@@ -156,15 +156,15 @@ class _LoginActivityState extends State<LoginActivity> {
                 decoration: InputDecoration(
                   hintText: 'Email',
                   filled: true,
-                  fillColor: Color(0xFF393E46),
-                  prefixIcon: Icon(Icons.email, color: Colors.white70),
+                  fillColor: Color(0xFFF6E6CC), // Light Almond
+                  prefixIcon: Icon(Icons.email, color: Color(0xFF8D6E63)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
                   ),
                 ),
                 keyboardType: TextInputType.emailAddress,
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Color(0xFF5D4037)),
               ),
               SizedBox(height: 16),
               TextField(
@@ -172,23 +172,23 @@ class _LoginActivityState extends State<LoginActivity> {
                 decoration: InputDecoration(
                   hintText: 'Password',
                   filled: true,
-                  fillColor: Color(0xFF393E46),
-                  prefixIcon: Icon(Icons.lock, color: Colors.white70),
+                  fillColor: Color(0xFFF6E6CC),
+                  prefixIcon: Icon(Icons.lock, color: Color(0xFF8D6E63)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
                   ),
                 ),
                 obscureText: true,
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Color(0xFF5D4037)),
               ),
               SizedBox(height: 24),
               isLoading
-                  ? Center(child: CircularProgressIndicator(color: Colors.white))
+                  ? Center(child: CircularProgressIndicator(color: Color(0xFFE17055)))
                   : ElevatedButton(
                 onPressed: _isSignUpMode ? _registerUser : _loginUser,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF673AB7),
+                  backgroundColor: Color(0xFFE17055), // Burnt Orange
                   padding: EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -196,7 +196,7 @@ class _LoginActivityState extends State<LoginActivity> {
                 ),
                 child: Text(
                   _isSignUpMode ? 'Sign up' : 'Sign in',
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(fontSize: 18, color: Colors.white),
                 ),
               ),
               SizedBox(height: 16),
@@ -204,7 +204,7 @@ class _LoginActivityState extends State<LoginActivity> {
                 onPressed: _toggleMode,
                 child: Text(
                   _isSignUpMode ? "Already have an account? Sign in" : "Don't have an account? Sign up",
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: Color(0xFF8D6E63)),
                 ),
               ),
             ],
