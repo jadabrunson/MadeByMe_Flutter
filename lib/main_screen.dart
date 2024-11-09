@@ -20,6 +20,7 @@ class _MainScreenState extends State<MainScreen> {
   int maxStreak = 0;
   DateTime? lastUploadDate;
   bool isUploading = false;
+  bool verificationFailed = false;
 
   @override
   void initState() {
@@ -63,12 +64,10 @@ class _MainScreenState extends State<MainScreen> {
 
       lastUploadDate = today;
 
-      // Update max streak if current streak is greater than max streak
       if (streakCount > maxStreak) {
         maxStreak = streakCount;
       }
 
-      // Update Firebase with email, current streak, and max streak
       await _databaseRef.child(currentUser!.uid).set({
         "email": currentUser!.email,
         "streaks": {
@@ -89,6 +88,7 @@ class _MainScreenState extends State<MainScreen> {
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
+        verificationFailed = false; // Reset verification fail message
       });
     }
   }
@@ -112,19 +112,20 @@ class _MainScreenState extends State<MainScreen> {
           SnackBar(content: Text("Verified as home-cooked food. Streak updated!")),
         );
 
-        // Update the streak count
         await _updateStreak();
         setState(() {
-          _imageFile = null; // Remove the image after verification
-          isUploading = false; // Reset the uploading state
+          _imageFile = null;
+          isUploading = false;
+          verificationFailed = false;
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Image not verified as home-cooked food.")),
         );
         setState(() {
-          _imageFile = null; // Remove image if verification fails
-          isUploading = false; // Reset the uploading state
+          _imageFile = null;
+          isUploading = false;
+          verificationFailed = true;
         });
       }
     } catch (e) {
@@ -133,7 +134,8 @@ class _MainScreenState extends State<MainScreen> {
         SnackBar(content: Text("Failed to verify image. Please try again.")),
       );
       setState(() {
-        isUploading = false; // Reset the uploading state in case of error
+        isUploading = false;
+        verificationFailed = false;
       });
     }
   }
@@ -144,7 +146,6 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _signOut() async {
     await _auth.signOut();
-    // Navigate back to the login screen and remove all previous routes
     Navigator.of(context).pushNamedAndRemoveUntil(
       '/',
           (Route<dynamic> route) => false,
@@ -154,10 +155,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFFF8E7), // Warm Ivory
+      backgroundColor: Color(0xFFFFF8E7),
       appBar: AppBar(
         title: Text('Main Screen'),
-        backgroundColor: Color(0xFFE17055), // Burnt Orange
+        backgroundColor: Color(0xFFE17055),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
@@ -166,76 +167,118 @@ class _MainScreenState extends State<MainScreen> {
         ],
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              "Welcome, ${currentUser?.email ?? 'User'}",
-              style: TextStyle(color: Color(0xFF5D4037), fontSize: 18), // Deep Brown
-            ),
-            SizedBox(height: 10),
-            Text(
-              "Current Streak: $streakCount days",
-              style: TextStyle(color: Color(0xFF8D6E63), fontSize: 16), // Soft Brown
-            ),
-            Text(
-              "Max Streak: $maxStreak days",
-              style: TextStyle(color: Color(0xFF8D6E63), fontSize: 16), // Soft Brown
-            ),
-            SizedBox(height: 20),
-            _imageFile != null
-                ? Flexible(
-              child: Image.file(
-                _imageFile!,
-                fit: BoxFit.contain,
-                width: MediaQuery.of(context).size.width * 0.8,
-                height: MediaQuery.of(context).size.height * 0.4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                "Welcome, ${currentUser?.email?.split('@')[0] ?? 'User'}",
+                style: TextStyle(
+                  color: Color(0xFF5D4037),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-            )
-                : Text(
-              "No image selected.",
-              style: TextStyle(color: Color(0xFF8D6E63)), // Soft Brown
-            ),
-            SizedBox(height: 20),
-            if (isUploading)
-              CircularProgressIndicator(color: Color(0xFFE17055)) // Burnt Orange
-            else ...[
-              ElevatedButton(
-                onPressed: () => _pickImage(ImageSource.camera),
-                child: Text("Take Photo"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFE17055), // Burnt Orange
-                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+              SizedBox(height: 15),
+              Text(
+                "Current Streak: $streakCount days",
+                style: TextStyle(
+                  color: Color(0xFF8D6E63),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              ElevatedButton(
-                onPressed: () => _pickImage(ImageSource.gallery),
-                child: Text("Upload from Gallery"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFE17055), // Burnt Orange
-                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+              Text(
+                "Max Streak: $maxStreak days",
+                style: TextStyle(
+                  color: Color(0xFF8D6E63),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
-              ElevatedButton(
-                onPressed: _verifyAndUploadImage,
-                child: Text("Verify"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFE17055), // Burnt Orange
-                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+              SizedBox(height: 20),
+              _imageFile != null
+                  ? Flexible(
+                child: Image.file(
+                  _imageFile!,
+                  fit: BoxFit.cover,
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  height: MediaQuery.of(context).size.height * 0.35,
+                ),
+              )
+                  : Center(
+                child: Text(
+                  verificationFailed
+                      ? "Please upload a home-cooked meal"
+                      : "No image selected.",
+                  style: TextStyle(
+                    color: Color(0xFF8D6E63),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
+              SizedBox(height: 25),
+              if (isUploading)
+                CircularProgressIndicator(color: Color(0xFFE17055))
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Column(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.photo_camera, size: 40, color: Color(0xFFE17055)),
+                          onPressed: () => _pickImage(ImageSource.camera),
+                        ),
+                        Text(
+                          "Take Photo",
+                          style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.photo_library, size: 40, color: Color(0xFFE17055)),
+                          onPressed: () => _pickImage(ImageSource.gallery),
+                        ),
+                        Text(
+                          "Upload from Gallery",
+                          style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    if (_imageFile != null)
+                      Column(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.check_circle, size: 40, color: Color(0xFFE17055)),
+                            onPressed: _verifyAndUploadImage,
+                          ),
+                          Text(
+                            "Verify",
+                            style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
             ],
-          ],
+          ),
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color(0xFFF6E6CC), // Light Almond
-        selectedItemColor: Color(0xFFE17055), // Burnt Orange
-        unselectedItemColor: Color(0xFF8D6E63), // Soft Brown
+        backgroundColor: Color(0xFFF6E6CC),
+        selectedItemColor: Color(0xFFE17055),
+        unselectedItemColor: Color(0xFF8D6E63),
         items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.photo_camera),
-            label: "Camera",
+            icon: Icon(Icons.home),
+            label: "Home",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.leaderboard),
@@ -243,9 +286,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
         onTap: (index) {
-          if (index == 0) {
-            // Camera functionality remains as is
-          } else if (index == 1) {
+          if (index == 1) {
             _navigateTo('/leaderboard');
           }
         },

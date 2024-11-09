@@ -76,6 +76,11 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
     return email.contains("@") ? email.split("@")[0] : email;
   }
 
+  Future<void> _signOut() async {
+    await _firebaseAuth.signOut();
+    Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,31 +88,95 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
       appBar: AppBar(
         title: Text("Leaderboard"),
         backgroundColor: Color(0xFFE17055), // Burnt Orange
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: _signOut,
+          ),
+        ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
             child: Text(
               userPosition,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF5D4037)), // Deep Brown
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF5D4037), // Deep Brown
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: leaderboardData.length,
-              itemBuilder: (context, index) {
-                final entry = leaderboardData[index];
-                return ListTile(
-                  title: Text(
-                    "${index + 1}. ${getUsernameFromEmail(entry['email'])} - ${entry['maxStreak']} days",
-                    style: TextStyle(fontSize: 16, color: Color(0xFF8D6E63)), // Soft Brown
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: 80.0), // Space above the bottom navigation bar
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Color(0xFFF6E6CC), // Light Almond
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                );
-              },
+                  child: Column(
+                    children: leaderboardData.map((entry) {
+                      int index = leaderboardData.indexOf(entry);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 15.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFFF8E7), // Warm Ivory
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Color(0xFFE17055)), // Burnt Orange border
+                          ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Color(0xFFE17055), // Burnt Orange
+                              child: Text(
+                                "${index + 1}",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            title: Text(
+                              "${getUsernameFromEmail(entry['email'])}",
+                              style: TextStyle(fontSize: 18, color: Color(0xFF5D4037), fontWeight: FontWeight.w500), // Deep Brown
+                            ),
+                            subtitle: Text(
+                              "${entry['maxStreak']} days",
+                              style: TextStyle(fontSize: 16, color: Color(0xFF8D6E63)), // Soft Brown
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Color(0xFFF6E6CC), // Light Almond
+        selectedItemColor: Color(0xFFE17055), // Burnt Orange
+        unselectedItemColor: Color(0xFF8D6E63), // Soft Brown
+        currentIndex: 1, // Set the current index to 1 for the leaderboard page
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: "Home",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.leaderboard),
+            label: "Leaderboard",
+          ),
+        ],
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushReplacementNamed(context, '/main'); // Navigate to Home page
+          }
+        },
       ),
     );
   }
