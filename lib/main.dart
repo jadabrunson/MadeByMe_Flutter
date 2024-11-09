@@ -1,66 +1,9 @@
-
-/**
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // Import Firebase core package
-import 'LoginActivity.dart'; // Ensure this import is correct
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter binding is initialized
-  await Firebase.initializeApp(); // Initialize Firebase
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MadeByMe',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: LoginActivity(), // Ensure this matches the actual name of your login screen class
-    );
-  }
-}
-
-*/
-
-/**
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'LoginActivity.dart'; // Ensure this import is correct
-import 'main_screen.dart'; // Import your main screen
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // Initialize Firebase
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MadeByMe',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => LoginActivity(), // Home route for login
-        '/main': (context) => MainScreen(), // Main screen route
-      },
-    );
-  }
-}
-
-    */
-
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'LoginActivity.dart';
 import 'main_screen.dart';
 import 'LeaderboardActivity.dart';
+import 'GalleryPage.dart'; // Import the gallery page
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,11 +17,15 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'MadeByMe',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Color(0xFF222831),
+        primarySwatch: Colors.orange,
+        scaffoldBackgroundColor: Color(0xFFFFF8E7), // Warm ivory background
+        appBarTheme: AppBarTheme(
+          color: Color(0xFFE17055), // Burnt orange app bar
+          iconTheme: IconThemeData(color: Colors.white),
+        ),
         textTheme: TextTheme(
-          bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Colors.white70),
+          bodyLarge: TextStyle(color: Color(0xFF5D4037)), // Deep brown for primary text
+          bodyMedium: TextStyle(color: Color(0xFF8D6E63)), // Soft brown for secondary text
         ),
       ),
       initialRoute: '/',
@@ -86,8 +33,8 @@ class MyApp extends StatelessWidget {
         '/': (context) => LoginActivity(),
         '/main': (context) => MainScreen(),
         '/leaderboard': (context) => LeaderboardActivity(),
+        '/gallery': (context) => GalleryPage(), // New route for the gallery page
       },
     );
   }
 }
-

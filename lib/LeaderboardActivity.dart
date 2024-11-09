@@ -171,10 +171,16 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
             icon: Icon(Icons.leaderboard),
             label: "Leaderboard",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_album),
+            label: "Gallery",
+          ),
         ],
         onTap: (index) {
           if (index == 0) {
             Navigator.pushReplacementNamed(context, '/main'); // Navigate to Home page
+          } else if (index == 2) {
+            Navigator.pushReplacementNamed(context, '/gallery'); // Navigate to Gallery page
           }
         },
       ),
