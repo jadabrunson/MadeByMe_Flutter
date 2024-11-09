@@ -13,11 +13,11 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final DatabaseReference _databaseRef =
-  FirebaseDatabase.instance.ref().child("users");
+  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child("users");
   User? currentUser;
   File? _imageFile;
   int streakCount = 0;
+  int maxStreak = 0;
   DateTime? lastUploadDate;
   bool isUploading = false;
 
@@ -31,16 +31,14 @@ class _MainScreenState extends State<MainScreen> {
     try {
       currentUser = _auth.currentUser;
       if (currentUser != null) {
-        final event =
-        await _databaseRef.child(currentUser!.uid).child("streaks").once();
+        final event = await _databaseRef.child(currentUser!.uid).once();
         final snapshot = event.snapshot;
         if (snapshot.value != null) {
-          Map<String, dynamic> streakData =
-          Map<String, dynamic>.from(snapshot.value as Map);
+          Map<String, dynamic> userData = Map<String, dynamic>.from(snapshot.value as Map);
           setState(() {
-            streakCount = streakData["streakCount"] ?? 0;
-            lastUploadDate =
-                DateTime.tryParse(streakData["lastUploadDate"] ?? '');
+            streakCount = userData["streaks"]?["currentStreak"] ?? 0;
+            maxStreak = userData["streaks"]?["maxStreak"] ?? 0;
+            lastUploadDate = DateTime.tryParse(userData["streaks"]?["lastUploadDate"] ?? '');
           });
         }
       }
@@ -64,9 +62,20 @@ class _MainScreenState extends State<MainScreen> {
       }
 
       lastUploadDate = today;
-      await _databaseRef.child(currentUser!.uid).child("streaks").set({
-        "streakCount": streakCount,
-        "lastUploadDate": DateFormat('yyyy-MM-dd').format(today),
+
+      // Update max streak if current streak is greater than max streak
+      if (streakCount > maxStreak) {
+        maxStreak = streakCount;
+      }
+
+      // Update Firebase with email, current streak, and max streak
+      await _databaseRef.child(currentUser!.uid).set({
+        "email": currentUser!.email,
+        "streaks": {
+          "currentStreak": streakCount,
+          "maxStreak": maxStreak,
+          "lastUploadDate": DateFormat('yyyy-MM-dd').format(today),
+        }
       });
 
       setState(() {});
@@ -167,6 +176,10 @@ class _MainScreenState extends State<MainScreen> {
             SizedBox(height: 10),
             Text(
               "Current Streak: $streakCount days",
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+            Text(
+              "Max Streak: $maxStreak days",
               style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
             SizedBox(height: 20),
