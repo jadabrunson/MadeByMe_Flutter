@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
 import 'VisionHelper.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -16,6 +17,7 @@ class _MainScreenState extends State<MainScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child("users");
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
 
   User? currentUser;
   File? _imageFile;
@@ -29,6 +31,18 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _logScreenView();
+  }
+
+  Future<void> _logScreenView() async {
+    await _analytics.logEvent(name: 'screen_view', parameters: {
+      'screen_name': 'MainScreen',
+      'screen_class': 'MainScreen'
+    });
+  }
+
+  Future<void> _logEvent(String eventName, Map<String, Object>? parameters) async {
+    await _analytics.logEvent(name: eventName, parameters: parameters);
   }
 
   Future<void> _loadUserData() async {
@@ -89,6 +103,12 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
 
+      // Log streak update event
+      await _logEvent('streak_updated', {
+        'current_streak': streakCount,
+        'max_streak': maxStreak,
+      });
+
       setState(() {});
     } catch (e) {
       print("Error updating streak: $e");
@@ -101,6 +121,10 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _imageFile = File(pickedFile.path);
         verificationFailed = false;
+      });
+      // Log image pick event
+      await _logEvent('image_picked', {
+        'source': source == ImageSource.camera ? 'camera' : 'gallery',
       });
     }
   }
@@ -132,6 +156,9 @@ class _MainScreenState extends State<MainScreen> {
           isUploading = false;
           verificationFailed = false;
         });
+
+        // Log successful verification event
+        await _logEvent('image_verified', {'status': 'success'});
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Image not verified as home-cooked food.")),
@@ -141,6 +168,9 @@ class _MainScreenState extends State<MainScreen> {
           isUploading = false;
           verificationFailed = true;
         });
+
+        // Log failed verification event
+        await _logEvent('image_verified', {'status': 'failed'});
       }
     } catch (e) {
       print("Error during verification: $e");
@@ -168,14 +198,15 @@ class _MainScreenState extends State<MainScreen> {
 
   void _navigateTo(String route) {
     Navigator.pushNamed(context, route);
+    // Log navigation event
+    _logEvent('navigation', {'destination': route});
   }
 
   Future<void> _signOut() async {
     await _auth.signOut();
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      '/',
-          (Route<dynamic> route) => false,
-    );
+    Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+    // Log sign-out event
+    await _logEvent('user_sign_out', null);
   }
 
   @override
