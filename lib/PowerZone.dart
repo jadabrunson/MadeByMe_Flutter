@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PowerZone extends StatefulWidget {
   @override
@@ -7,52 +9,153 @@ class PowerZone extends StatefulWidget {
 }
 
 class _PowerZoneState extends State<PowerZone> {
-  RewardedAd? _rewardedAd;
-  bool _isAdLoaded = false;
-  int _currentIndex = 4; // Set the initial index to PowerZone (assuming it's the 5th tab)
+  RewardedAd? _rewardedAd; // Replace BannerAd with RewardedAd
+  bool _isRewardedAdLoaded = false; // Track if the Rewarded Ad is loaded
+  int _currentIndex = 4; // Set the initial index to PowerZone
+  double groupProgress = 0.0; // Initialize group progress at 0
+  int userContribution = 0; // Initialize user contribution at 0
+  final int targetMeals = 6; // Set target meals for 100% progress
+  final DatabaseReference _challengeRef =
+  FirebaseDatabase.instance.ref().child("weeklyChallenge");
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  User? currentUser;
+
+  // Define the test Rewarded Ad Unit ID
+  static const String rewardedAdUnitId =
+      'ca-app-pub-3940256099942544/5224354917'; // Test Rewarded Ad Unit ID
 
   @override
   void initState() {
     super.initState();
-    _loadRewardedAd();
+    currentUser = _auth.currentUser;
+    _loadRewardedAd(); // Prepare the Rewarded Ad on initialization
+    _initializeData();
   }
 
-  // Load the rewarded ad
+  // Load a Rewarded Ad for testing
   void _loadRewardedAd() {
     RewardedAd.load(
-      adUnitId: 'ca-app-pub-3940256099942544/5224354917', // Google's official test ad unit ID for Rewarded Ads
+      adUnitId: rewardedAdUnitId, // Use the correct test Rewarded Ad Unit ID
       request: AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
           setState(() {
             _rewardedAd = ad;
-            _isAdLoaded = true;
+            _isRewardedAdLoaded = true;
           });
           print('Rewarded Ad Loaded successfully');
+          _setRewardedAdCallbacks(); // Set callbacks for the loaded ad
         },
         onAdFailedToLoad: (error) {
           print('RewardedAd failed to load: $error');
           setState(() {
-            _isAdLoaded = false;
+            _isRewardedAdLoaded = false;
           });
         },
       ),
     );
   }
 
-  // Show the rewarded ad
-  void _showRewardedAd() {
-    if (_rewardedAd != null) {
-      _rewardedAd!.show(onUserEarnedReward: (ad, reward) {
-        print('User earned reward: ${reward.amount} ${reward.type}');
-        _freezeStreak();
-      });
+  // Set callbacks for the Rewarded Ad
+  void _setRewardedAdCallbacks() {
+    _rewardedAd?.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        print('Rewarded Ad dismissed');
+        ad.dispose();
+        setState(() {
+          _rewardedAd = null;
+          _isRewardedAdLoaded = false;
+        });
+        _loadRewardedAd(); // Load a new ad for future use
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        print('Rewarded Ad failed to show: $error');
+        ad.dispose();
+        setState(() {
+          _rewardedAd = null;
+          _isRewardedAdLoaded = false;
+        });
+        _loadRewardedAd(); // Load a new ad for future use
+      },
+    );
+  }
 
-      // Dispose of the ad after showing and load a new one for next time
-      _rewardedAd = null;
-      _loadRewardedAd();
+  // Initialize challenge data from Firebase
+  Future<void> _initializeData() async {
+    await _initializeGroupProgress();
+    await _loadUserContribution();
+  }
+
+  // Initialize or load group progress
+  Future<void> _initializeGroupProgress() async {
+    try {
+      final contributionsSnapshot =
+      await _challengeRef.child("contributions").get();
+      if (contributionsSnapshot.exists) {
+        int totalContributions = contributionsSnapshot.children
+            .map((snapshot) =>
+        snapshot.child("userContribution").value as int? ?? 0)
+            .fold(0, (sum, value) => sum + value);
+
+        setState(() {
+          // Calculate progress based on target meals
+          groupProgress = (totalContributions / targetMeals).clamp(0.0, 1.0);
+        });
+        print("Initial groupProgress loaded: ${groupProgress * 100}%");
+      } else {
+        // If groupProgress doesn't exist, initialize it to 0
+        setState(() {
+          groupProgress = 0.0;
+        });
+        print("Initialized groupProgress to 0");
+      }
+    } catch (e) {
+      print("Error initializing groupProgress: $e");
+    }
+  }
+
+  // Load initial user contribution
+  Future<void> _loadUserContribution() async {
+    if (currentUser != null) {
+      try {
+        final userContributionSnapshot = await _challengeRef
+            .child("contributions")
+            .child(currentUser!.uid)
+            .child("userContribution")
+            .get();
+
+        if (userContributionSnapshot.exists) {
+          setState(() {
+            userContribution = userContributionSnapshot.value as int;
+          });
+          print("Initial userContribution loaded: $userContribution");
+        }
+      } catch (e) {
+        print("Error loading initial user contribution: $e");
+      }
+    }
+  }
+
+  // Show the Rewarded Ad when user clicks the button
+  void _displayRewardedAd() {
+    if (_rewardedAd != null) {
+      _rewardedAd!.show(
+        onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
+          print('User earned reward: ${reward.amount} ${reward.type}');
+          _freezeStreak(); // Call streak freeze after earning the reward
+        },
+      );
+      // After showing the ad, set the ad to null and load a new one
+      setState(() {
+        _rewardedAd = null;
+        _isRewardedAdLoaded = false;
+      });
+      _loadRewardedAd(); // Load a new ad for future use
     } else {
-      print('RewardedAd not ready');
+      print('Rewarded Ad is not loaded yet.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Ad is not ready yet. Please try again later.")),
+      );
     }
   }
 
@@ -61,11 +164,12 @@ class _PowerZoneState extends State<PowerZone> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Your streak has been frozen for today!")),
     );
+    // You can also update Firebase or local state here as needed
   }
 
   @override
   void dispose() {
-    _rewardedAd?.dispose();
+    _rewardedAd?.dispose(); // Dispose of the Rewarded Ad when done
     super.dispose();
   }
 
@@ -76,10 +180,10 @@ class _PowerZoneState extends State<PowerZone> {
         title: Text('PowerZone'),
         backgroundColor: Color(0xFFE17055),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
               "Welcome to the PowerZone!",
@@ -91,24 +195,20 @@ class _PowerZoneState extends State<PowerZone> {
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
-            Text(
-              "Need to take a break but don’t want to lose your streak? Watch an ad to freeze it for a day.",
-              style: TextStyle(
-                color: Color(0xFF8D6E63),
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
+
+            // Weekly Group Challenge Section
+            _buildWeeklyChallengeCard(),
+
             SizedBox(height: 30),
             ElevatedButton(
-              onPressed: _isAdLoaded ? _showRewardedAd : null,
+              onPressed: _isRewardedAdLoaded ? _displayRewardedAd : null,
               child: Text("Watch Ad to Freeze Streak"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFFE17055),
                 foregroundColor: Colors.white,
               ),
             ),
-            if (!_isAdLoaded)
+            if (!_isRewardedAdLoaded)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
@@ -116,54 +216,100 @@ class _PowerZoneState extends State<PowerZone> {
                   style: TextStyle(color: Color(0xFF8D6E63)),
                 ),
               ),
+
+            // Optionally, you can show a placeholder or additional UI elements here
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color(0xFFF6E6CC),
-        selectedItemColor: Color(0xFFE17055),
-        unselectedItemColor: Color(0xFF8D6E63),
-        currentIndex: _currentIndex, // Dynamically set the currentIndex
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.leaderboard),
-            label: "Leaderboard",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.photo_album),
-            label: "Gallery",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.video_library),
-            label: "Reels",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.flash_on), // Lightning bolt icon for PowerZone
-            label: "PowerZone", // PowerZone tab label
-          ),
-        ],
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index; // Update currentIndex when tapping on tabs
-          });
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
 
-          if (index == 0) {
-            Navigator.pushNamed(context, '/main');
-          } else if (index == 1) {
-            Navigator.pushNamed(context, '/leaderboard');
-          } else if (index == 2) {
-            Navigator.pushNamed(context, '/gallery');
-          } else if (index == 3) {
-            Navigator.pushNamed(context, '/reels');
-          } else if (index == 4) {
-            // No navigation needed for PowerZone since it's already the current screen
-          }
-        },
+  // Build the Weekly Challenge Card
+  Widget _buildWeeklyChallengeCard() {
+    return Card(
+      color: Color(0xFFF6E6CC),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text(
+              "Weekly Challenge: Vegan Recipes!",
+              style: TextStyle(
+                color: Color(0xFF5D4037),
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "Sponsored by Fresh Mart - Complete to earn a 10% grocery discount!",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF8D6E63)),
+            ),
+            SizedBox(height: 20),
+            LinearProgressIndicator(
+              value: groupProgress,
+              minHeight: 12,
+              backgroundColor: Color(0xFFEEE5D5),
+              color: Color(0xFFE17055),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "Group Progress: ${(groupProgress * 100).toInt()}%",
+              style: TextStyle(
+                  color: Color(0xFF8D6E63), fontWeight: FontWeight.w500),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "Your Contribution: $userContribution meals",
+              style: TextStyle(color: Color(0xFF5D4037)),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  // Bottom Navigation Bar with navigation logic
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      backgroundColor: Color(0xFFF6E6CC),
+      selectedItemColor: Color(0xFFE17055),
+      unselectedItemColor: Color(0xFF8D6E63),
+      currentIndex: _currentIndex,
+      items: [
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.leaderboard), label: "Leaderboard"),
+        BottomNavigationBarItem(icon: Icon(Icons.photo_album), label: "Gallery"),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.video_library), label: "Reels"),
+        BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: "PowerZone"),
+      ],
+      onTap: (index) {
+        setState(() {
+          _currentIndex = index;
+        });
+        switch (index) {
+          case 0:
+            Navigator.pushNamed(context, '/main');
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/leaderboard');
+            break;
+          case 2:
+            Navigator.pushNamed(context, '/gallery');
+            break;
+          case 3:
+            Navigator.pushNamed(context, '/reels');
+            break;
+          case 4:
+            break; // Current page, no navigation needed
+        }
+      },
     );
   }
 }

@@ -16,6 +16,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child("users");
+  final DatabaseReference _challengeRef = FirebaseDatabase.instance.ref().child("weeklyChallenge");
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
 
@@ -142,22 +143,35 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     try {
-      bool isVerified = await VisionHelper.verifyImage(_imageFile!);
+      final verificationResults = await VisionHelper.verifyImage(_imageFile!);
+      bool isVerified = verificationResults['isVerified'] ?? false;
+      bool matchesChallenge = verificationResults['matchesChallenge'] ?? false;
+
       if (isVerified) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Verified as home-cooked food. Streak updated!")),
         );
 
         String imageUrl = await _uploadImageToFirebase(_imageFile!);
-
         await _updateStreak(imageUrl);
+
+        if (matchesChallenge) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Image meets the challenge theme! Contribution added.")),
+          );
+          await _contributeToChallenge();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Image does not meet the challenge theme.")),
+          );
+        }
+
         setState(() {
           _imageFile = null;
           isUploading = false;
           verificationFailed = false;
         });
 
-        // Log successful verification event
         await _logEvent('image_verified', {'status': 'success'});
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -169,7 +183,6 @@ class _MainScreenState extends State<MainScreen> {
           verificationFailed = true;
         });
 
-        // Log failed verification event
         await _logEvent('image_verified', {'status': 'failed'});
       }
     } catch (e) {
@@ -181,6 +194,36 @@ class _MainScreenState extends State<MainScreen> {
         isUploading = false;
         verificationFailed = false;
       });
+    }
+  }
+
+  Future<void> _contributeToChallenge() async {
+    try {
+      final challengeSnapshot = await _challengeRef.child("contributions").get();
+      if (!challengeSnapshot.exists) {
+        await _challengeRef.child("contributions").set({
+          currentUser!.uid: {
+            "userContribution": 1,
+            "lastContributed": DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+          },
+        });
+      } else {
+        await _challengeRef.child("contributions").child(currentUser!.uid).update({
+          "userContribution": ServerValue.increment(1),
+          "lastContributed": DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+        });
+      }
+
+      // Update group progress by incrementing it with each contribution
+      await _challengeRef.child("groupProgress").set(ServerValue.increment(1));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Challenge contribution added! Group progress updated.")),
+      );
+
+      await _logEvent('challenge_contributed', {'user_id': currentUser!.uid});
+    } catch (e) {
+      print("Error contributing to challenge: $e");
     }
   }
 
@@ -198,14 +241,12 @@ class _MainScreenState extends State<MainScreen> {
 
   void _navigateTo(String route) {
     Navigator.pushNamed(context, route);
-    // Log navigation event
     _logEvent('navigation', {'destination': route});
   }
 
   Future<void> _signOut() async {
     await _auth.signOut();
     Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
-    // Log sign-out event
     await _logEvent('user_sign_out', null);
   }
 
