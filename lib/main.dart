@@ -38,6 +38,7 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => LoginActivity(),
+        '/login': (context) => LoginActivity(), // Added '/login' route
         '/main': (context) => MainScreen(),
         '/leaderboard': (context) => LeaderboardActivity(),
         '/gallery': (context) => GalleryPage(),

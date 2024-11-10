@@ -28,6 +28,15 @@ class _MainScreenState extends State<MainScreen> {
   bool isUploading = false;
   bool verificationFailed = false;
 
+  // Define routes for navigation
+  final Map<int, String> _routes = {
+    0: '/main',
+    1: '/leaderboard',
+    2: '/gallery',
+    3: '/reels',
+    4: '/powerzone',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +72,12 @@ class _MainScreenState extends State<MainScreen> {
       }
     } catch (e) {
       print("Error loading user data: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to load user data. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -113,20 +128,36 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {});
     } catch (e) {
       print("Error updating streak: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to update streak. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final pickedFile = await ImagePicker().pickImage(source: source);
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-        verificationFailed = false;
-      });
-      // Log image pick event
-      await _logEvent('image_picked', {
-        'source': source == ImageSource.camera ? 'camera' : 'gallery',
-      });
+    try {
+      final pickedFile = await ImagePicker().pickImage(source: source);
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+          verificationFailed = false;
+        });
+        // Log image pick event
+        await _logEvent('image_picked', {
+          'source': source == ImageSource.camera ? 'camera' : 'gallery',
+        });
+      }
+    } catch (e) {
+      print("Error picking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to pick image. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -153,7 +184,11 @@ class _MainScreenState extends State<MainScreen> {
         );
 
         String imageUrl = await _uploadImageToFirebase(_imageFile!);
-        await _updateStreak(imageUrl);
+        if (imageUrl.isNotEmpty) {
+          await _updateStreak(imageUrl);
+        } else {
+          throw Exception("Image URL is empty after upload.");
+        }
 
         if (matchesChallenge) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -224,6 +259,12 @@ class _MainScreenState extends State<MainScreen> {
       await _logEvent('challenge_contributed', {'user_id': currentUser!.uid});
     } catch (e) {
       print("Error contributing to challenge: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to contribute to challenge. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -235,19 +276,68 @@ class _MainScreenState extends State<MainScreen> {
       return await ref.getDownloadURL();
     } catch (e) {
       print("Error uploading image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to upload image. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
       return "";
     }
   }
 
   void _navigateTo(String route) {
-    Navigator.pushNamed(context, route);
-    _logEvent('navigation', {'destination': route});
+    if (ModalRoute.of(context)?.settings.name != route) {
+      Navigator.pushReplacementNamed(context, route);
+      _logEvent('navigation', {'destination': route});
+    }
   }
 
-  Future<void> _signOut() async {
-    await _auth.signOut();
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
-    await _logEvent('user_sign_out', null);
+  // Enhanced Logout Functionality with Confirmation Dialog
+  Future<void> _logout() async {
+    try {
+      await _auth.signOut();
+      // Navigate to the login screen after logout
+      Navigator.pushReplacementNamed(context, '/login');
+      await _logEvent('user_sign_out', null);
+    } catch (e) {
+      // Handle errors if any
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error signing out. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      print("Error during sign out: $e");
+    }
+  }
+
+  // Confirmation Dialog for Logout
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+            TextButton(
+              child: Text('Logout'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _logout();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -260,7 +350,8 @@ class _MainScreenState extends State<MainScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
-            onPressed: _signOut,
+            tooltip: 'Logout',
+            onPressed: _confirmLogout,
           ),
         ],
       ),
@@ -369,47 +460,46 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color(0xFFF6E6CC),
-        selectedItemColor: Color(0xFFE17055),
-        unselectedItemColor: Color(0xFF8D6E63),
-        currentIndex: 0,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.leaderboard),
-            label: "Leaderboard",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.photo_album),
-            label: "Gallery",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.video_library),
-            label: "Reels",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bolt), // Icon for PowerZone
-            label: "PowerZone",
-          ),
-        ],
-        onTap: (index) {
-          if (index == 0) {
-            _navigateTo('/main');
-          } else if (index == 1) {
-            _navigateTo('/leaderboard');
-          } else if (index == 2) {
-            _navigateTo('/gallery');
-          } else if (index == 3) {
-            _navigateTo('/reels');
-          } else if (index == 4) {
-            _navigateTo('/powerzone'); // Navigate to PowerZone
-          }
-        },
-      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  // Bottom Navigation Bar with Enhanced Navigation Logic
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      backgroundColor: Color(0xFFF6E6CC),
+      selectedItemColor: Color(0xFFE17055),
+      unselectedItemColor: Color(0xFF8D6E63),
+      currentIndex: 0, // Set current index to Home
+      items: [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: "Home",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.leaderboard),
+          label: "Leaderboard",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.photo_album),
+          label: "Gallery",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.video_library),
+          label: "Reels",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.bolt), // Icon for PowerZone
+          label: "PowerZone",
+        ),
+      ],
+      onTap: (index) {
+        if (index == 0) {
+          // Current page, do nothing
+          return;
+        }
+        _navigateTo(_routes[index]!);
+      },
     );
   }
 }

@@ -154,7 +154,9 @@ class _PowerZoneState extends State<PowerZone> {
     } else {
       print('Rewarded Ad is not loaded yet.');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Ad is not ready yet. Please try again later.")),
+        SnackBar(
+            content:
+            Text("Ad is not ready yet. Please try again later.")),
       );
     }
   }
@@ -165,6 +167,51 @@ class _PowerZoneState extends State<PowerZone> {
       SnackBar(content: Text("Your streak has been frozen for today!")),
     );
     // You can also update Firebase or local state here as needed
+  }
+
+  // Logout functionality
+  Future<void> _logout() async {
+    try {
+      await _auth.signOut();
+      // Navigate to the login screen after logout
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      // Handle errors if any
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error signing out. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Confirmation dialog for logout
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+            TextButton(
+              child: Text('Logout'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _logout();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -179,6 +226,13 @@ class _PowerZoneState extends State<PowerZone> {
       appBar: AppBar(
         title: Text('PowerZone'),
         backgroundColor: Color(0xFFE17055),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: _confirmLogout,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -290,24 +344,28 @@ class _PowerZoneState extends State<PowerZone> {
         BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: "PowerZone"),
       ],
       onTap: (index) {
+        if (index == _currentIndex) return; // Do nothing if tapped on the current page
+
         setState(() {
           _currentIndex = index;
         });
+
         switch (index) {
           case 0:
-            Navigator.pushNamed(context, '/main');
+            Navigator.pushReplacementNamed(context, '/main');
             break;
           case 1:
-            Navigator.pushNamed(context, '/leaderboard');
+            Navigator.pushReplacementNamed(context, '/leaderboard');
             break;
           case 2:
-            Navigator.pushNamed(context, '/gallery');
+            Navigator.pushReplacementNamed(context, '/gallery');
             break;
           case 3:
-            Navigator.pushNamed(context, '/reels');
+            Navigator.pushReplacementNamed(context, '/reels');
             break;
           case 4:
-            break; // Current page, no navigation needed
+          // Current page, no navigation needed
+            break;
         }
       },
     );

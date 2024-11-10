@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class ReelsPage extends StatefulWidget {
   @override
@@ -10,7 +11,8 @@ class ReelsPage extends StatefulWidget {
 
 class _ReelsPageState extends State<ReelsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child("users");
+  final DatabaseReference _databaseRef =
+  FirebaseDatabase.instance.ref().child("users");
 
   User? currentUser;
   List<Map<String, dynamic>> reelsData = [];
@@ -18,101 +20,303 @@ class _ReelsPageState extends State<ReelsPage> {
   ScrollController _scrollController = ScrollController();
   Set<String> reportedImageIds = {};
 
+  // Initialize FirebaseAnalytics
+  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+
+  // Define routes for navigation
+  final Map<int, String> _routes = {
+    0: '/main',
+    1: '/leaderboard',
+    2: '/gallery',
+    3: '/reels',
+    4: '/powerzone',
+  };
+
   @override
   void initState() {
     super.initState();
-    _loadReportedImages();
-    _loadReels();
+    _initializeUser();
+  }
+
+  Future<void> _initializeUser() async {
+    currentUser = _auth.currentUser;
+    if (currentUser != null) {
+      await _loadReportedImages();
+      await _loadReels();
+    } else {
+      // If user is not logged in, navigate to login screen
+      Navigator.pushReplacementNamed(context, '/login');
+    }
   }
 
   Future<void> _loadReportedImages() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      reportedImageIds = prefs.getStringList('reportedImages_${currentUser?.uid}')?.toSet() ?? {};
+      reportedImageIds =
+          prefs.getStringList('reportedImages_${currentUser?.uid}')?.toSet() ??
+              {};
     });
   }
 
   Future<void> _loadReels() async {
-    currentUser = _auth.currentUser;
-    final usersSnapshot = await _databaseRef.get();
-    if (usersSnapshot.exists) {
-      Map<String, dynamic> allUsersData = Map<String, dynamic>.from(usersSnapshot.value as Map);
-      setState(() {
-        reelsData = [];
+    try {
+      final usersSnapshot = await _databaseRef.get();
+      if (usersSnapshot.exists) {
+        Map<String, dynamic> allUsersData =
+        Map<String, dynamic>.from(usersSnapshot.value as Map);
+        List<Map<String, dynamic>> fetchedReels = [];
+
         allUsersData.forEach((uid, userData) {
           if (userData['images'] != null) {
-            Map<String, dynamic> userImages = Map<String, dynamic>.from(userData['images']);
+            Map<String, dynamic> userImages =
+            Map<String, dynamic>.from(userData['images']);
             userImages.forEach((imageId, imageData) {
               if (!reportedImageIds.contains(imageId)) {
                 List<Map<String, String>> formattedComments = [];
                 if (imageData["comments"] != null) {
-                  Map<String, dynamic> commentsData = Map<String, dynamic>.from(imageData["comments"]);
+                  Map<String, dynamic> commentsData =
+                  Map<String, dynamic>.from(imageData["comments"]);
                   commentsData.forEach((key, commentData) {
-                    formattedComments.add({
+                    // Insert each comment at the beginning to have latest comments first
+                    formattedComments.insert(0, {
                       "user": commentData["user"] ?? "Anonymous",
                       "text": commentData["text"] ?? "",
                     });
                   });
                 }
-                reelsData.add({
+                fetchedReels.add({
                   "uid": uid,
                   "imageId": imageId,
                   "url": imageData["url"],
-                  "likes": imageData["likes"] ?? {},
+                  "likes": Map<String, dynamic>.from(
+                      imageData["likes"] ?? {}), // Ensure it's a Map
                   "comments": formattedComments,
                 });
               }
             });
           }
         });
+
+        setState(() {
+          reelsData = fetchedReels;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          reelsData = [];
+          isLoading = false;
+        });
+      }
+    } catch (error) {
+      print("Failed to fetch reels data: $error");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to load reels. Please try again later."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() {
+        reelsData = [];
         isLoading = false;
       });
     }
   }
 
   Future<void> _likeImage(String uid, String imageId) async {
-    currentUser = _auth.currentUser;
-    DatabaseReference likesRef = _databaseRef.child(uid).child("images").child(imageId).child("likes");
-    if (reelsData.any((element) =>
+    if (currentUser == null) return;
+
+    DatabaseReference likesRef =
+    _databaseRef.child(uid).child("images").child(imageId).child("likes");
+
+    bool isLiked = reelsData.any((element) =>
     element['uid'] == uid &&
         element['imageId'] == imageId &&
-        (element['likes'][currentUser!.uid] ?? false))) {
-      await likesRef.child(currentUser!.uid).remove(); // Unlike the image
-    } else {
-      await likesRef.child(currentUser!.uid).set(true); // Like the image
+        (element['likes'][currentUser!.uid] ?? false));
+
+    try {
+      if (isLiked) {
+        await likesRef.child(currentUser!.uid).remove(); // Unlike the image
+      } else {
+        await likesRef.child(currentUser!.uid).set(true); // Like the image
+      }
+      // Update the specific reel's like status locally
+      setState(() {
+        int reelIndex = reelsData.indexWhere((reel) =>
+        reel['uid'] == uid && reel['imageId'] == imageId);
+        if (reelIndex != -1) {
+          if (isLiked) {
+            reelsData[reelIndex]['likes'].remove(currentUser!.uid);
+          } else {
+            reelsData[reelIndex]['likes'][currentUser!.uid] = true;
+          }
+        }
+      });
+
+      // Log like/unlike event
+      await _logEvent(
+        isLiked ? 'image_unliked' : 'image_liked',
+        {'uid': uid, 'imageId': imageId},
+      );
+    } catch (e) {
+      print("Error liking/unliking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to update like. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-    _loadReels();
   }
 
   Future<void> _reportImage(String uid, String imageId) async {
+    if (currentUser == null) return;
+
     setState(() {
-      reelsData.removeWhere((reel) => reel["uid"] == uid && reel["imageId"] == imageId);
+      reelsData.removeWhere(
+              (reel) => reel["uid"] == uid && reel["imageId"] == imageId);
       reportedImageIds.add(imageId); // Track reported image
     });
 
     final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList('reportedImages_${currentUser?.uid}', reportedImageIds.toList());
+    prefs.setStringList(
+        'reportedImages_${currentUser?.uid}', reportedImageIds.toList());
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Image reported successfully.")),
+    );
+
+    // Log report event
+    await _logEvent('image_reported', {'uid': uid, 'imageId': imageId});
   }
 
   void _showReportOptions(String uid, String imageId) {
     showModalBottomSheet(
       context: context,
       builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text("Not homecooked food"),
-              onTap: () {
-                _reportImage(uid, imageId);
-                Navigator.pop(context);
+        return SafeArea( // Ensures the modal respects device safe areas
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.fastfood, color: Color(0xFFE17055)),
+                title: Text("Not homecooked food"),
+                onTap: () {
+                  _reportImage(uid, imageId);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.report, color: Color(0xFFE17055)),
+                title: Text("Inappropriate image"),
+                onTap: () {
+                  _reportImage(uid, imageId);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _addComment(
+      String uid, String imageId, String commentText) async {
+    if (currentUser == null) return;
+
+    if (commentText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Comment cannot be empty.")),
+      );
+      return;
+    }
+
+    try {
+      DatabaseReference commentsRef = _databaseRef
+          .child(uid)
+          .child("images")
+          .child(imageId)
+          .child("comments")
+          .push();
+
+      await commentsRef.set({
+        "user": currentUser!.email?.split('@')[0] ?? 'Anonymous',
+        "text": commentText,
+      });
+
+      setState(() {
+        for (var reel in reelsData) {
+          if (reel["uid"] == uid && reel["imageId"] == imageId) {
+            // Insert the new comment at the beginning for latest comments first
+            reel["comments"].insert(0, {
+              "user": currentUser!.email?.split('@')[0] ?? 'Anonymous',
+              "text": commentText,
+            });
+          }
+        }
+      });
+
+      // Log comment event
+      await _logEvent('comment_added', {
+        'uid': uid,
+        'imageId': imageId,
+        'comment': commentText,
+      });
+    } catch (e) {
+      print("Error adding comment: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to add comment. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _logoutEnhanced() async {
+    try {
+      await _auth.signOut();
+      Navigator.pushReplacementNamed(context, '/login');
+      // Optionally, show a success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Logged out successfully."),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // Log the logout event
+      await _logEvent('user_sign_out', null);
+    } catch (e) {
+      print("Error during sign out: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error signing out. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Confirmation Dialog for Logout
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
               },
             ),
-            ListTile(
-              title: Text("Inappropriate image"),
-              onTap: () {
-                _reportImage(uid, imageId);
-                Navigator.pop(context);
+            TextButton(
+              child: Text('Logout'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _logoutEnhanced();
               },
             ),
           ],
@@ -121,42 +325,58 @@ class _ReelsPageState extends State<ReelsPage> {
     );
   }
 
-  void _logout() async {
-    await _auth.signOut();
-    Navigator.of(context).pushReplacementNamed('/login');
+  // Bottom Navigation Bar with Enhanced Navigation Logic
+  Widget _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      backgroundColor: Color(0xFFF6E6CC),
+      selectedItemColor: Color(0xFFE17055),
+      unselectedItemColor: Color(0xFF8D6E63),
+      currentIndex: 3, // Set current index to Reels
+      items: [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: "Home",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.leaderboard),
+          label: "Leaderboard",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.photo_album),
+          label: "Gallery",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.video_library),
+          label: "Reels",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.bolt), // Icon for PowerZone
+          label: "PowerZone",
+        ),
+      ],
+      onTap: (index) {
+        if (_routes[index] == '/reels') {
+          // Current page, do nothing
+          return;
+        }
+        _navigateTo(_routes[index]!);
+      },
+    );
   }
 
-  Future<void> _addComment(String uid, String imageId, String commentText) async {
-    currentUser = _auth.currentUser;
-    if (currentUser != null && commentText.isNotEmpty) {
-      try {
-        DatabaseReference commentsRef = _databaseRef
-            .child(uid)
-            .child("images")
-            .child(imageId)
-            .child("comments")
-            .push();
+  void _navigateTo(String route) {
+    if (ModalRoute.of(context)?.settings.name != route) {
+      Navigator.pushReplacementNamed(context, route);
+      _logEvent('navigation', {'destination': route});
+    }
+  }
 
-        await commentsRef.set({
-          "user": currentUser!.email?.split('@')[0] ?? 'Anonymous',
-          "text": commentText,
-        });
-
-        setState(() {
-          for (var reel in reelsData) {
-            if (reel["uid"] == uid && reel["imageId"] == imageId) {
-              reel["comments"].insert(0, {
-                "user": currentUser!.email?.split('@')[0] ?? 'Anonymous',
-                "text": commentText,
-              });
-            }
-          }
-        });
-
-        _scrollController.jumpTo(0);
-      } catch (e) {
-        print("Error adding comment: $e");
-      }
+  // Define _logEvent method
+  Future<void> _logEvent(String eventName, Map<String, Object>? parameters) async {
+    try {
+      await _analytics.logEvent(name: eventName, parameters: parameters);
+    } catch (e) {
+      print("Error logging event: $e");
     }
   }
 
@@ -169,52 +389,17 @@ class _ReelsPageState extends State<ReelsPage> {
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
-            onPressed: _logout,
+            tooltip: 'Logout',
+            onPressed: _confirmLogout,
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color(0xFFF6E6CC),
-        selectedItemColor: Color(0xFFE17055),
-        unselectedItemColor: Color(0xFF8D6E63),
-        currentIndex: 3,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.leaderboard),
-            label: "Leaderboard",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.photo_album),
-            label: "Gallery",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.video_library),
-            label: "Reels",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bolt), // Icon for PowerZone
-            label: "PowerZone",
-          ),
-        ],
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacementNamed(context, '/main');
-          } else if (index == 1) {
-            Navigator.pushReplacementNamed(context, '/leaderboard');
-          } else if (index == 2) {
-            Navigator.pushReplacementNamed(context, '/gallery');
-          } else if (index == 4) {
-            Navigator.pushReplacementNamed(context, '/powerzone'); // Navigate to PowerZone
-          }
-        },
-      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
       backgroundColor: Color(0xFFFFF8E7),
       body: isLoading
-          ? Center(child: CircularProgressIndicator(color: Color(0xFFE17055)))
+          ? Center(
+        child: CircularProgressIndicator(color: Color(0xFFE17055)),
+      )
           : reelsData.isEmpty
           ? Center(
         child: Text(
@@ -223,61 +408,180 @@ class _ReelsPageState extends State<ReelsPage> {
         ),
       )
           : ListView.builder(
+        controller: _scrollController,
         itemCount: reelsData.length,
         itemBuilder: (context, index) {
           final reel = reelsData[index];
-          final isLiked = reel["likes"][currentUser!.uid] ?? false;
+          final isLiked =
+              reel["likes"][currentUser!.uid] ?? false;
           return Card(
             margin: EdgeInsets.all(8.0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
             child: Column(
               children: [
-                Image.network(reel["url"], fit: BoxFit.cover),
+                Image.network(
+                  reel["url"],
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 200,
+                      color: Colors.grey[300],
+                      child: Icon(Icons.broken_image,
+                          size: 50, color: Colors.grey[700]),
+                    );
+                  },
+                  loadingBuilder:
+                      (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 200,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFE17055),
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment:
+                  MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, color: Colors.red),
-                      onPressed: () => _likeImage(reel["uid"], reel["imageId"]),
+                      icon: Icon(
+                        isLiked
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: Colors.red,
+                      ),
+                      onPressed: () =>
+                          _likeImage(reel["uid"], reel["imageId"]),
                     ),
                     IconButton(
-                      icon: Icon(Icons.comment, color: Color(0xFF8D6E63)),
+                      icon: Icon(Icons.comment,
+                          color: Color(0xFF8D6E63)),
                       onPressed: () {
                         showModalBottomSheet(
                           context: context,
+                          isScrollControlled: true,
                           builder: (context) {
-                            TextEditingController commentController = TextEditingController();
+                            TextEditingController
+                            commentController =
+                            TextEditingController();
                             return Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Column(
-                                children: [
-                                  TextField(
-                                    controller: commentController,
-                                    decoration: InputDecoration(hintText: "Add a comment..."),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.send, color: Color(0xFFE17055)),
-                                    onPressed: () {
-                                      _addComment(reel["uid"], reel["imageId"], commentController.text);
-                                      commentController.clear();
-                                    },
-                                  ),
-                                  Expanded(
-                                    child: ListView.builder(
-                                      controller: _scrollController,
-                                      reverse: true,
-                                      itemCount: reel["comments"].length,
-                                      itemBuilder: (context, commentIndex) {
-                                        final comment = reel["comments"][commentIndex];
-                                        return ListTile(
-                                          leading: Icon(Icons.person, color: Color(0xFFE17055)),
-                                          title: Text(comment["user"]),
-                                          subtitle: Text(comment["text"]),
-                                        );
-                                      },
+                              padding: EdgeInsets.only(
+                                  bottom: MediaQuery.of(context)
+                                      .viewInsets
+                                      .bottom),
+                              child: Container(
+                                padding: EdgeInsets.all(8.0),
+                                // Set a maximum height for the bottom sheet
+                                height: MediaQuery.of(context)
+                                    .size
+                                    .height *
+                                    0.5, // 50% of screen height
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            controller:
+                                            commentController,
+                                            decoration: InputDecoration(
+                                              hintText:
+                                              "Add a comment...",
+                                              border:
+                                              OutlineInputBorder(),
+                                            ),
+                                            textInputAction:
+                                            TextInputAction.send,
+                                            onSubmitted: (value) {
+                                              String trimmedValue =
+                                              value.trim();
+                                              if (trimmedValue
+                                                  .isNotEmpty) {
+                                                _addComment(
+                                                  reel["uid"],
+                                                  reel["imageId"],
+                                                  trimmedValue,
+                                                );
+                                                commentController
+                                                    .clear();
+                                                // Removed Navigator.pop(context);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                        SizedBox(width: 8.0),
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.send,
+                                            color:
+                                            Color(0xFFE17055),
+                                          ),
+                                          onPressed: () {
+                                            String comment = commentController
+                                                .text
+                                                .trim();
+                                            if (comment.isNotEmpty) {
+                                              _addComment(
+                                                reel["uid"],
+                                                reel["imageId"],
+                                                comment,
+                                              );
+                                              commentController
+                                                  .clear();
+                                              // Removed Navigator.pop(context);
+                                            }
+                                          },
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
+                                    Divider(),
+                                    // Replace Expanded with SizedBox to limit height
+                                    SizedBox(
+                                      height: MediaQuery.of(context)
+                                          .size
+                                          .height *
+                                          0.3, // 30% of screen height
+                                      child: reel["comments"].isEmpty
+                                          ? Center(
+                                        child: Text(
+                                          "No comments yet.",
+                                          style: TextStyle(
+                                              color: Color(
+                                                  0xFF8D6E63),
+                                              fontSize: 14),
+                                        ),
+                                      )
+                                          : ListView.builder(
+                                        itemCount:
+                                        reel["comments"]
+                                            .length,
+                                        itemBuilder:
+                                            (context,
+                                            commentIndex) {
+                                          final comment =
+                                          reel["comments"]
+                                          [commentIndex];
+                                          return ListTile(
+                                            leading: Icon(
+                                              Icons.person,
+                                              color: Color(
+                                                  0xFFE17055),
+                                            ),
+                                            title:
+                                            Text(comment["user"]),
+                                            subtitle:
+                                            Text(comment["text"]),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -286,8 +590,10 @@ class _ReelsPageState extends State<ReelsPage> {
                     ),
                     if (reel["uid"] != currentUser!.uid)
                       IconButton(
-                        icon: Icon(Icons.flag, color: Color(0xFFE17055)),
-                        onPressed: () => _showReportOptions(reel["uid"], reel["imageId"]),
+                        icon: Icon(Icons.flag,
+                            color: Color(0xFFE17055)),
+                        onPressed: () => _showReportOptions(
+                            reel["uid"], reel["imageId"]),
                       ),
                   ],
                 ),

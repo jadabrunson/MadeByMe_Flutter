@@ -39,12 +39,62 @@ class _GalleryPageState extends State<GalleryPage> {
     }
   }
 
+  Future<void> _logout() async {
+    try {
+      await _auth.signOut();
+      // Navigate to the login screen after logout
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      // Handle errors if any
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error signing out. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+            TextButton(
+              child: Text('Logout'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _logout();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text("My Gallery"),
         backgroundColor: Color(0xFFE17055),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: _confirmLogout,
+          ),
+        ],
       ),
       backgroundColor: Color(0xFFFFF8E7),
       body: isLoading
@@ -123,6 +173,7 @@ class _GalleryPageState extends State<GalleryPage> {
           } else if (index == 4) {
             Navigator.pushReplacementNamed(context, '/powerzone'); // Navigate to PowerZone page
           }
+          // No action needed for index 2 since it's the current page
         },
       ),
     );
