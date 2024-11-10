@@ -72,6 +72,9 @@ class _MainScreenState extends State<MainScreen> {
         int difference = today.difference(lastUploadDate!).inDays;
         if (difference == 1) {
           streakCount++;
+          if (streakCount == 1) {
+            _rewardUser(streakCount % 30);
+          }
         } else if (difference > 1) {
           streakCount = 1;
         }
@@ -113,6 +116,12 @@ class _MainScreenState extends State<MainScreen> {
     } catch (e) {
       print("Error updating streak: $e");
     }
+  }
+
+  _rewardUser(int months) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Congratulations! You hit a month streak and won a Publix gift card!")),
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
