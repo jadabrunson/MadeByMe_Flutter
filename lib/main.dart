@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'LoginActivity.dart';
 import 'main_screen.dart';
 import 'LeaderboardActivity.dart';
-import 'GalleryPage.dart'; // Import the gallery page
-import 'ReelsPage.dart'; // Import the reels page
+import 'GalleryPage.dart';
+import 'ReelsPage.dart';
+import 'PowerZone.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // Initialize Google Mobile Ads SDK
+  MobileAds.instance.initialize();
+
   runApp(MyApp());
 }
 
@@ -34,8 +40,9 @@ class MyApp extends StatelessWidget {
         '/': (context) => LoginActivity(),
         '/main': (context) => MainScreen(),
         '/leaderboard': (context) => LeaderboardActivity(),
-        '/gallery': (context) => GalleryPage(), // Route for the gallery page
-        '/reels': (context) => ReelsPage(), // Route for the reels page
+        '/gallery': (context) => GalleryPage(),
+        '/reels': (context) => ReelsPage(),
+        '/powerzone': (context) => PowerZone(), // Route for the PowerZone page
       },
     );
   }

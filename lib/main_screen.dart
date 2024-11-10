@@ -350,14 +350,22 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.video_library),
             label: "Reels",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bolt), // Icon for PowerZone
+            label: "PowerZone",
+          ),
         ],
         onTap: (index) {
-          if (index == 1) {
+          if (index == 0) {
+            _navigateTo('/main');
+          } else if (index == 1) {
             _navigateTo('/leaderboard');
           } else if (index == 2) {
             _navigateTo('/gallery');
           } else if (index == 3) {
             _navigateTo('/reels');
+          } else if (index == 4) {
+            _navigateTo('/powerzone'); // Navigate to PowerZone
           }
         },
       ),

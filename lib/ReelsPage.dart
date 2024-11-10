@@ -43,7 +43,6 @@ class _ReelsPageState extends State<ReelsPage> {
           if (userData['images'] != null) {
             Map<String, dynamic> userImages = Map<String, dynamic>.from(userData['images']);
             userImages.forEach((imageId, imageData) {
-              // Only add the image if it's not reported by the current user
               if (!reportedImageIds.contains(imageId)) {
                 List<Map<String, String>> formattedComments = [];
                 if (imageData["comments"] != null) {
@@ -91,7 +90,6 @@ class _ReelsPageState extends State<ReelsPage> {
       reportedImageIds.add(imageId); // Track reported image
     });
 
-    // Save reported images locally for this specific user
     final prefs = await SharedPreferences.getInstance();
     prefs.setStringList('reportedImages_${currentUser?.uid}', reportedImageIds.toList());
   }
@@ -197,6 +195,10 @@ class _ReelsPageState extends State<ReelsPage> {
             icon: Icon(Icons.video_library),
             label: "Reels",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bolt), // Icon for PowerZone
+            label: "PowerZone",
+          ),
         ],
         onTap: (index) {
           if (index == 0) {
@@ -205,6 +207,8 @@ class _ReelsPageState extends State<ReelsPage> {
             Navigator.pushReplacementNamed(context, '/leaderboard');
           } else if (index == 2) {
             Navigator.pushReplacementNamed(context, '/gallery');
+          } else if (index == 4) {
+            Navigator.pushReplacementNamed(context, '/powerzone'); // Navigate to PowerZone
           }
         },
       ),

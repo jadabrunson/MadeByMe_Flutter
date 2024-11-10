@@ -175,6 +175,10 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
             icon: Icon(Icons.video_library),
             label: "Reels",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bolt), // Icon for PowerZone
+            label: "PowerZone",
+          ),
         ],
         onTap: (index) {
           if (index == 0) {
@@ -183,6 +187,8 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
             Navigator.pushReplacementNamed(context, '/gallery');
           } else if (index == 3) {
             Navigator.pushReplacementNamed(context, '/reels');
+          } else if (index == 4) {
+            Navigator.pushReplacementNamed(context, '/powerzone'); // Navigate to PowerZone
           }
         },
       ),
