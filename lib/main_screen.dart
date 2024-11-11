@@ -16,6 +16,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child("users");
+  final DatabaseReference _challengeRef = FirebaseDatabase.instance.ref().child("weeklyChallenge");
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
 
@@ -167,9 +168,9 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     try {
-      // Expecting verifyImage to return a map with a boolean under the "isVerified" key
       final result = await VisionHelper.verifyImage(_imageFile!);
       bool isVerified = result["isVerified"] ?? false;
+      bool matchesChallenge = result["matchesChallenge"] ?? false;
 
       if (isVerified) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -178,7 +179,23 @@ class _MainScreenState extends State<MainScreen> {
 
         String imageUrl = await _uploadImageToFirebase(_imageFile!);
 
-        await _updateStreak(imageUrl);
+        if (imageUrl.isNotEmpty) {
+          await _updateStreak(imageUrl);
+
+          if (matchesChallenge) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Image meets the challenge theme! Contribution added.")),
+            );
+            await _contributeToChallenge();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Image does not meet the challenge theme.")),
+            );
+          }
+        } else {
+          throw Exception("Image URL is empty after upload.");
+        }
+
         setState(() {
           _imageFile = null;
           isUploading = false;
@@ -186,8 +203,6 @@ class _MainScreenState extends State<MainScreen> {
         });
 
         await _rewardUser(streakCount);
-
-        // Log successful verification event
         await _logEvent('image_verified', {'status': 'success'});
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -199,7 +214,6 @@ class _MainScreenState extends State<MainScreen> {
           verificationFailed = true;
         });
 
-        // Log failed verification event
         await _logEvent('image_verified', {'status': 'failed'});
       }
     } catch (e) {
@@ -211,6 +225,39 @@ class _MainScreenState extends State<MainScreen> {
         isUploading = false;
         verificationFailed = false;
       });
+    }
+  }
+
+  Future<void> _contributeToChallenge() async {
+    try {
+      final challengeSnapshot = await _challengeRef.child("contributions").get();
+      if (!challengeSnapshot.exists) {
+        await _challengeRef.child("contributions").set({
+          currentUser!.uid: {
+            "userContribution": 1,
+            "lastContributed": DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+          },
+        });
+      } else {
+        await _challengeRef.child("contributions").child(currentUser!.uid).update({
+          "userContribution": ServerValue.increment(1),
+          "lastContributed": DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+        });
+      }
+
+      await _challengeRef.child("groupProgress").set(ServerValue.increment(1));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Challenge contribution added! Group progress updated.")),
+      );
+      await _logEvent('challenge_contributed', {'user_id': currentUser!.uid});
+    } catch (e) {
+      print("Error contributing to challenge: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to contribute to challenge. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -228,14 +275,12 @@ class _MainScreenState extends State<MainScreen> {
 
   void _navigateTo(String route) {
     Navigator.pushNamed(context, route);
-    // Log navigation event
     _logEvent('navigation', {'destination': route});
   }
 
   Future<void> _signOut() async {
     await _auth.signOut();
     Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
-    // Log sign-out event
     await _logEvent('user_sign_out', null);
   }
 
@@ -380,14 +425,30 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.video_library),
             label: "Reels",
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.flash_on), // Icon for PowerZone
+            label: "PowerZone",
+          ),
         ],
         onTap: (index) {
-          if (index == 1) {
-            _navigateTo('/leaderboard');
-          } else if (index == 2) {
-            _navigateTo('/gallery');
-          } else if (index == 3) {
-            _navigateTo('/reels');
+          switch (index) {
+            case 0:
+              _navigateTo('/main');
+              break;
+            case 1:
+              _navigateTo('/leaderboard');
+              break;
+            case 2:
+              _navigateTo('/gallery');
+              break;
+            case 3:
+              _navigateTo('/reels');
+              break;
+            case 4:
+              _navigateTo('/powerzone');
+              break;
+            default:
+              break;
           }
         },
       ),

@@ -4,8 +4,8 @@ import 'package:http/http.dart' as http; // Import for http
 
 class VisionHelper {
   static const String apiKey = 'AIzaSyB22hFvSIxZQEG6kDeQo4zZkNGpqLzNqzE';
-  static const double confidenceThreshold = 0.5;
-  static const double challengeConfidenceThreshold = 0.5;
+  static const double confidenceThreshold = 0.1;
+  static const double challengeConfidenceThreshold = 0.1;
 
   // Method to verify image with Google Vision API
   static Future<Map<String, bool>> verifyImage(File imageFile) async {
@@ -38,9 +38,14 @@ class VisionHelper {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
+        // Debug: Print the entire response for inspection
+        print('API response: $data');
+
         // Process the response to determine if it is home-cooked food
         bool isHomeCooked = _isHomeCookedFood(data['responses'][0]);
         bool matchesChallenge = _matchesChallengeTheme(data['responses'][0]);
+
+        print('isHomeCooked: $isHomeCooked, matchesChallenge: $matchesChallenge');
 
         return {'isVerified': isHomeCooked, 'matchesChallenge': isHomeCooked && matchesChallenge};
       } else {
@@ -56,14 +61,10 @@ class VisionHelper {
   // Determines if the image contains home-cooked food
   static bool _isHomeCookedFood(Map<String, dynamic> response) {
     bool hasFoodLabel = false;
-    bool hasKitchenObject = false;
 
-    // Define keywords and objects to identify home-cooked food
+    // Define keywords to identify home-cooked food
     const foodKeywords = [
       "food", "meal", "dish", "cuisine", "plate", "cooking", "homemade", "baked", "kitchen", "fresh", "prepared"
-    ];
-    const kitchenObjects = [
-      "plate", "bowl", "pan", "spoon", "fork", "knife", "pot", "kitchen", "table"
     ];
     const nonHomeCookedKeywords = [
       "restaurant", "fast food", "takeout", "packaged", "brand", "logo"
@@ -75,6 +76,8 @@ class VisionHelper {
         String description = annotation['description'].toLowerCase();
         double confidence = annotation['score'];
 
+        print('Food Label: $description, Confidence: $confidence');
+
         if (foodKeywords.any((keyword) => description.contains(keyword)) && confidence >= confidenceThreshold) {
           hasFoodLabel = true;
         }
@@ -85,34 +88,27 @@ class VisionHelper {
       }
     }
 
-    // Check for kitchen-related objects with confidence threshold
-    if (response.containsKey('localizedObjectAnnotations')) {
-      for (var object in response['localizedObjectAnnotations']) {
-        String name = object['name'].toLowerCase();
-        double confidence = object['score'];
-
-        if (kitchenObjects.any((item) => name.contains(item)) && confidence >= confidenceThreshold) {
-          hasKitchenObject = true;
-          break; // Break if a relevant object is found
-        }
-      }
-    }
-
-    return hasFoodLabel && hasKitchenObject;
+    return hasFoodLabel;
   }
 
   // Check if the image matches a specific challenge theme with an expanded keyword list and a lower confidence threshold
   static bool _matchesChallengeTheme(Map<String, dynamic> response) {
     // Expanded list of vegan-related keywords for better detection
     const challengeKeywords = [
-      "vegan", "plant-based", "vegetable", "tofu", "salad", "fruit", "legume", "bean", "nuts", "grains", "plant protein"
+      "vegan", "plant-based", "vegetable", "tofu", "salad", "fruit", "legume", "bean", "nuts", "grains", "plant protein",
+      "vegetarian", "greens", "fiber", "herbs", "root vegetables"
     ];
+
     if (response.containsKey('labelAnnotations')) {
       for (var annotation in response['labelAnnotations']) {
         String description = annotation['description'].toLowerCase();
         double confidence = annotation['score'];
 
+        // Debugging: Print each label and its confidence
+        print('Challenge Label: $description, Confidence: $confidence');
+
         if (challengeKeywords.any((keyword) => description.contains(keyword)) && confidence >= challengeConfidenceThreshold) {
+          print('Challenge theme match found');
           return true; // Only consider it a match if confidence is above the threshold
         }
       }
