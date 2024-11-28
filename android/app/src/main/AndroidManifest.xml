@@ -37,7 +37,8 @@
             android:value="2" />
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-1816147780919752~9143430295" />
+            android:value= "ca-app-pub-5235439237915251~4279740569"/>
+
 
         <!-- Resolve conflict for AD_SERVICES_CONFIG resource -->
         <property
