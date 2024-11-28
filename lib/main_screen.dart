@@ -16,6 +16,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child("users");
+  final DatabaseReference _featureFlagRef = FirebaseDatabase.instance.ref().child("featureFlags");
   final DatabaseReference _challengeRef = FirebaseDatabase.instance.ref().child("weeklyChallenge");
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
@@ -28,11 +29,41 @@ class _MainScreenState extends State<MainScreen> {
   bool isUploading = false;
   bool verificationFailed = false;
 
+  // Feature flags
+  bool isTakePhotoEnabled = true;
+  bool isUploadFromGalleryEnabled = true;
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _initializeFeatureFlags();
     _logScreenView();
+  }
+
+  Future<void> _initializeFeatureFlags() async {
+    try {
+      final takePhotoFlag = await _featureFlagRef.child("takePhoto").get();
+      final uploadFromGalleryFlag = await _featureFlagRef.child("uploadFromGallery").get();
+
+      setState(() {
+        if (takePhotoFlag.exists) {
+          isTakePhotoEnabled = takePhotoFlag.value == 1;
+        } else {
+          _featureFlagRef.child("takePhoto").set(1); // Default to 'on'
+          isTakePhotoEnabled = true;
+        }
+
+        if (uploadFromGalleryFlag.exists) {
+          isUploadFromGalleryEnabled = uploadFromGalleryFlag.value == 1;
+        } else {
+          _featureFlagRef.child("uploadFromGallery").set(1); // Default to 'on'
+          isUploadFromGalleryEnabled = true;
+        }
+      });
+    } catch (e) {
+      print("Error initializing feature flags: $e");
+    }
   }
 
   Future<void> _logScreenView() async {
@@ -116,31 +147,6 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  _rewardUser(int months) {
-    if (months != 0 && months % 30 == 0) {
-      int num_months = months % 30;
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text("Congratulations!"),
-            content: Text(
-              "You’ve reached a $num_months-month streak! You’ve won a Publix gift card. Tap below to claim your reward.",
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: Text("Claim Reward"),
-              ),
-            ],
-          );
-        },
-      );
-    }
-  }
-
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await ImagePicker().pickImage(source: source);
     if (pickedFile != null) {
@@ -202,7 +208,6 @@ class _MainScreenState extends State<MainScreen> {
           verificationFailed = false;
         });
 
-        await _rewardUser(streakCount);
         await _logEvent('image_verified', {'status': 'success'});
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -225,6 +230,18 @@ class _MainScreenState extends State<MainScreen> {
         isUploading = false;
         verificationFailed = false;
       });
+    }
+  }
+
+  Future<String> _uploadImageToFirebase(File image) async {
+    try {
+      String filePath = 'images/${currentUser!.uid}/${DateTime.now().toIso8601String()}.jpg';
+      final ref = _storage.ref().child(filePath);
+      await ref.putFile(image);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print("Error uploading image: $e");
+      return "";
     }
   }
 
@@ -258,18 +275,6 @@ class _MainScreenState extends State<MainScreen> {
           backgroundColor: Colors.red,
         ),
       );
-    }
-  }
-
-  Future<String> _uploadImageToFirebase(File image) async {
-    try {
-      String filePath = 'images/${currentUser!.uid}/${DateTime.now().toIso8601String()}.jpg';
-      final ref = _storage.ref().child(filePath);
-      await ref.putFile(image);
-      return await ref.getDownloadURL();
-    } catch (e) {
-      print("Error uploading image: $e");
-      return "";
     }
   }
 
@@ -360,30 +365,32 @@ class _MainScreenState extends State<MainScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Column(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.photo_camera, size: 40, color: Color(0xFFE17055)),
-                          onPressed: () => _pickImage(ImageSource.camera),
-                        ),
-                        Text(
-                          "Take Photo",
-                          style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.photo_library, size: 40, color: Color(0xFFE17055)),
-                          onPressed: () => _pickImage(ImageSource.gallery),
-                        ),
-                        Text(
-                          "Upload from Gallery",
-                          style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
-                        ),
-                      ],
-                    ),
+                    if (isTakePhotoEnabled)
+                      Column(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.photo_camera, size: 40, color: Color(0xFFE17055)),
+                            onPressed: () => _pickImage(ImageSource.camera),
+                          ),
+                          Text(
+                            "Take Photo",
+                            style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    if (isUploadFromGalleryEnabled)
+                      Column(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.photo_library, size: 40, color: Color(0xFFE17055)),
+                            onPressed: () => _pickImage(ImageSource.gallery),
+                          ),
+                          Text(
+                            "Upload from Gallery",
+                            style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
+                          ),
+                        ],
+                      ),
                     if (_imageFile != null)
                       Column(
                         children: [
