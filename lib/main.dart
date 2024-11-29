@@ -44,6 +44,7 @@ class MyApp extends StatelessWidget {
         '/gallery': (context) => GalleryPage(),
         '/reels': (context) => ReelsPage(),
         '/powerzone': (context) => PowerZone(), // Route for the PowerZone page
+        '/payment' : (context) => PowerZone(),
       },
     );
   }

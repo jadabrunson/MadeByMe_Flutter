@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 class PowerZone extends StatefulWidget {
   @override
@@ -17,8 +18,21 @@ class _PowerZoneState extends State<PowerZone> {
   final int targetMeals = 6; // Set target meals for 100% progress
   final DatabaseReference _challengeRef =
   FirebaseDatabase.instance.ref().child("weeklyChallenge");
+  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
+  bool _adRemoved = false;
+  final mockProduct = ProductDetails(
+    id: 'remove_ads',
+    title: 'Remove Ads',
+    description: 'Remove all ads from the app',
+    price: '\$5.00', // Mock price
+    rawPrice: 5.00,
+    currencyCode: 'USD',
+  );
+  List<ProductDetails> _products = [];
+  bool _purchasePending = false;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   User? currentUser;
+  static const Set<String> _productIds = {'remove_ads'};
 
   // Define the test Rewarded Ad Unit ID
   static const String rewardedAdUnitId =
@@ -30,6 +44,50 @@ class _PowerZoneState extends State<PowerZone> {
     currentUser = _auth.currentUser;
     _loadRewardedAd(); // Prepare the Rewarded Ad on initialization
     _initializeData();
+  }
+
+  void _initializeInAppPurchases() async {
+    final ProductDetailsResponse response = await _inAppPurchase.queryProductDetails(_productIds);
+
+    if (response.error == null && response.productDetails.isNotEmpty) {
+      setState(() {
+        _products.add(mockProduct);
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to load products")));
+    }
+  }
+  void _buyProduct(ProductDetails product) {
+    print("Simulating purchase for product: ${product.id}");
+    setState(() {
+      _adRemoved = true; // Simulate removing ads
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Purchase successful: ${product.title}")),
+    );
+  }
+
+  // Handle purchase updates
+  void _handlePurchaseUpdates(List<PurchaseDetails> purchaseDetailsList) {
+    for (final PurchaseDetails purchaseDetails in purchaseDetailsList) {
+      if (purchaseDetails.status == PurchaseStatus.purchased) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Purchase Successful! Ads Removed")),
+        );
+      } else if (purchaseDetails.status == PurchaseStatus.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Purchase Failed")),
+        );
+      }
+
+      if (purchaseDetails.pendingCompletePurchase) {
+        _inAppPurchase.completePurchase(purchaseDetails);
+      }
+    }
+
+    setState(() {
+      _purchasePending = false;
+    });
   }
 
   // Load a Rewarded Ad for testing
@@ -222,6 +280,7 @@ class _PowerZoneState extends State<PowerZone> {
 
   @override
   Widget build(BuildContext context) {
+    _products.add(mockProduct);
     return Scaffold(
       appBar: AppBar(
         title: Text('PowerZone'),
@@ -259,6 +318,16 @@ class _PowerZoneState extends State<PowerZone> {
               child: Text("Watch Ad to Freeze Streak"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFFE17055),
+                foregroundColor: Colors.white,
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _buyProduct(_products[0]);
+              },
+              child: Text("Remove Ads - ${_products[0].price}"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF5D4037),
                 foregroundColor: Colors.white,
               ),
             ),
@@ -326,7 +395,6 @@ class _PowerZoneState extends State<PowerZone> {
       ),
     );
   }
-
   // Bottom Navigation Bar with navigation logic
   Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(
