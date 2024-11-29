@@ -7,6 +7,9 @@ import 'LeaderboardActivity.dart';
 import 'GalleryPage.dart';
 import 'ReelsPage.dart';
 import 'PowerZone.dart';
+import 'keys.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +17,9 @@ void main() async {
 
   // Initialize Google Mobile Ads SDK
   MobileAds.instance.initialize();
+
+  Stripe.publishableKey = PublishableKey;
+  await Stripe.instance.applySettings();
 
   runApp(MyApp());
 }
