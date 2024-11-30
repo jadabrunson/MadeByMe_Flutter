@@ -336,7 +336,8 @@ class _ReelCardState extends State<ReelCard> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: 8.0),
                             child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
                               children: [
                                 CircleAvatar(
                                   backgroundColor: Color(0xFFE17055),
@@ -464,7 +465,7 @@ class ReelsPage extends StatefulWidget {
   _ReelsPageState createState() => _ReelsPageState();
 }
 
-class _ReelsPageState extends State<ReelsPage> {
+class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
   // Firebase Instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _databaseRef =
@@ -502,15 +503,23 @@ class _ReelsPageState extends State<ReelsPage> {
     4: '/powerzone',
   };
 
+  // Variables to track time spent on ReelsPage
+  DateTime? _pageEnterTime;
+  bool _isLogged = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // Add observer
     _initializeUser();
     _pageController.addListener(_pageListener);
+    _pageEnterTime = DateTime.now(); // Record entry time
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // Remove observer
+    _logUsageTime(); // Log time on dispose
     _bannerAd?.dispose();
     inlineBannerAds.forEach((key, ad) {
       ad.bannerAd.dispose();
@@ -885,7 +894,8 @@ class _ReelsPageState extends State<ReelsPage> {
                 ),
                 SizedBox(height: 10),
                 ListTile(
-                  leading: Icon(Icons.fastfood, color: Color(0xFFE17055)),
+                  leading:
+                  Icon(Icons.fastfood, color: Color(0xFFE17055)),
                   title: Text("Not homecooked food"),
                   onTap: () {
                     _reportImage(uid, imageId, "Not homecooked food");
@@ -893,7 +903,8 @@ class _ReelsPageState extends State<ReelsPage> {
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.report, color: Color(0xFFE17055)),
+                  leading:
+                  Icon(Icons.report, color: Color(0xFFE17055)),
                   title: Text("Inappropriate image"),
                   onTap: () {
                     _reportImage(uid, imageId, "Inappropriate image");
@@ -957,6 +968,41 @@ class _ReelsPageState extends State<ReelsPage> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  /// Logs the time spent on the ReelsPage to Firebase Realtime Database.
+  Future<void> _logUsageTime() async {
+    if (_isLogged || currentUser == null || _pageEnterTime == null) return;
+    _isLogged = true;
+    DateTime now = DateTime.now();
+    Duration duration = now.difference(_pageEnterTime!);
+    int timeSpentSeconds = duration.inSeconds;
+    String timestamp = now.toIso8601String();
+    String userEmail = currentUser!.email ?? "unknown";
+
+    // Replace '.' with ',' to make it a valid Firebase key
+    String sanitizedEmail = userEmail.replaceAll('.', ',');
+
+    DatabaseReference usageLogsRef =
+    FirebaseDatabase.instance.ref().child("usageLogs").child(sanitizedEmail);
+
+    await usageLogsRef.push().set({
+      "timeSpentSeconds": timeSpentSeconds,
+      "timestamp": timestamp,
+    });
+
+    print(
+        "Logged usage for $userEmail: $timeSpentSeconds seconds at $timestamp");
+  }
+
+  /// Override to handle app lifecycle changes.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.inactive) {
+      _logUsageTime();
     }
   }
 
