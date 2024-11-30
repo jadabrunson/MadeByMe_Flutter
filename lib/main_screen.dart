@@ -15,9 +15,12 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref().child("users");
-  final DatabaseReference _featureFlagRef = FirebaseDatabase.instance.ref().child("featureFlags");
-  final DatabaseReference _challengeRef = FirebaseDatabase.instance.ref().child("weeklyChallenge");
+  final DatabaseReference _databaseRef =
+  FirebaseDatabase.instance.ref().child("users");
+  final DatabaseReference _featureFlagRef =
+  FirebaseDatabase.instance.ref().child("featureFlags");
+  final DatabaseReference _challengeRef =
+  FirebaseDatabase.instance.ref().child("weeklyChallenge");
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
 
@@ -33,33 +36,61 @@ class _MainScreenState extends State<MainScreen> {
   bool isTakePhotoEnabled = true;
   bool isUploadFromGalleryEnabled = true;
 
+  // User group
+  String userGroup = 'default';
+
   @override
   void initState() {
     super.initState();
-    _loadUserData();
-    _initializeFeatureFlags();
-    _logScreenView();
+    initialize();
+  }
+
+  Future<void> initialize() async {
+    await _loadUserData();
+    await _initializeFeatureFlags();
+    await _logScreenView();
   }
 
   Future<void> _initializeFeatureFlags() async {
     try {
+      // Load global feature flags
       final takePhotoFlag = await _featureFlagRef.child("takePhoto").get();
-      final uploadFromGalleryFlag = await _featureFlagRef.child("uploadFromGallery").get();
+      final uploadFromGalleryFlag =
+      await _featureFlagRef.child("uploadFromGallery").get();
+
+      bool globalTakePhoto =
+      takePhotoFlag.exists ? (takePhotoFlag.value == 1) : true;
+      bool globalUploadFromGallery = uploadFromGalleryFlag.exists
+          ? (uploadFromGalleryFlag.value == 1)
+          : true;
+
+      bool finalTakePhoto = globalTakePhoto;
+      bool finalUploadFromGallery = globalUploadFromGallery;
+
+      // If user is not in the default group, override with group feature flags
+      if (userGroup != 'default') {
+        final DatabaseReference groupFlagRef = FirebaseDatabase.instance
+            .ref()
+            .child("userGroups")
+            .child(userGroup);
+
+        final takePhotoGroupFlag =
+        await groupFlagRef.child("takePhoto").get();
+        final uploadFromGalleryGroupFlag =
+        await groupFlagRef.child("uploadFromGallery").get();
+
+        if (takePhotoGroupFlag.exists) {
+          finalTakePhoto = takePhotoGroupFlag.value == 1;
+        }
+
+        if (uploadFromGalleryGroupFlag.exists) {
+          finalUploadFromGallery = uploadFromGalleryGroupFlag.value == 1;
+        }
+      }
 
       setState(() {
-        if (takePhotoFlag.exists) {
-          isTakePhotoEnabled = takePhotoFlag.value == 1;
-        } else {
-          _featureFlagRef.child("takePhoto").set(1); // Default to 'on'
-          isTakePhotoEnabled = true;
-        }
-
-        if (uploadFromGalleryFlag.exists) {
-          isUploadFromGalleryEnabled = uploadFromGalleryFlag.value == 1;
-        } else {
-          _featureFlagRef.child("uploadFromGallery").set(1); // Default to 'on'
-          isUploadFromGalleryEnabled = true;
-        }
+        isTakePhotoEnabled = finalTakePhoto;
+        isUploadFromGalleryEnabled = finalUploadFromGallery;
       });
     } catch (e) {
       print("Error initializing feature flags: $e");
@@ -83,12 +114,31 @@ class _MainScreenState extends State<MainScreen> {
       if (currentUser != null) {
         final event = await _databaseRef.child(currentUser!.uid).once();
         final snapshot = event.snapshot;
-        if (snapshot.value != null) {
-          Map<String, dynamic> userData = Map<String, dynamic>.from(snapshot.value as Map);
+        if (snapshot.exists && snapshot.value != null) {
+          Map<String, dynamic> userData =
+          Map<String, dynamic>.from(snapshot.value as Map);
           setState(() {
             streakCount = userData["streaks"]?["currentStreak"] ?? 0;
             maxStreak = userData["streaks"]?["maxStreak"] ?? 0;
-            lastUploadDate = DateTime.tryParse(userData["streaks"]?["lastUploadDate"] ?? '');
+            String? lastDate = userData["streaks"]?["lastUploadDate"];
+            lastUploadDate = lastDate != null
+                ? DateTime.tryParse(lastDate + "T00:00:00") // Ensure valid format
+                : null;
+            userGroup = userData["group"] ?? 'default';
+          });
+        } else {
+          // If user data doesn't exist, initialize with default values
+          await _databaseRef.child(currentUser!.uid).set({
+            "email": currentUser!.email,
+            "group": "default",
+            "streaks": {
+              "currentStreak": 0,
+              "maxStreak": 0,
+              "lastUploadDate": "",
+            },
+          });
+          setState(() {
+            userGroup = 'default';
           });
         }
       }
@@ -148,16 +198,20 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final pickedFile = await ImagePicker().pickImage(source: source);
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-        verificationFailed = false;
-      });
-      // Log image pick event
-      await _logEvent('image_picked', {
-        'source': source == ImageSource.camera ? 'camera' : 'gallery',
-      });
+    try {
+      final pickedFile = await ImagePicker().pickImage(source: source);
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+          verificationFailed = false;
+        });
+        // Log image pick event
+        await _logEvent('image_picked', {
+          'source': source == ImageSource.camera ? 'camera' : 'gallery',
+        });
+      }
+    } catch (e) {
+      print("Error picking image: $e");
     }
   }
 
@@ -235,7 +289,8 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<String> _uploadImageToFirebase(File image) async {
     try {
-      String filePath = 'images/${currentUser!.uid}/${DateTime.now().toIso8601String()}.jpg';
+      String filePath =
+          'images/${currentUser!.uid}/${DateTime.now().toIso8601String()}.jpg';
       final ref = _storage.ref().child(filePath);
       await ref.putFile(image);
       return await ref.getDownloadURL();
@@ -252,17 +307,22 @@ class _MainScreenState extends State<MainScreen> {
         await _challengeRef.child("contributions").set({
           currentUser!.uid: {
             "userContribution": 1,
-            "lastContributed": DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+            "lastContributed":
+            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
           },
         });
       } else {
         await _challengeRef.child("contributions").child(currentUser!.uid).update({
           "userContribution": ServerValue.increment(1),
-          "lastContributed": DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+          "lastContributed":
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
         });
       }
 
-      await _challengeRef.child("groupProgress").set(ServerValue.increment(1));
+      await _challengeRef.child("groupProgress").update({
+        "groupProgress": ServerValue.increment(1),
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Challenge contribution added! Group progress updated.")),
       );
@@ -284,9 +344,17 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _signOut() async {
-    await _auth.signOut();
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
-    await _logEvent('user_sign_out', null);
+    try {
+      await _auth.signOut();
+      Navigator.of(context)
+          .pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+      await _logEvent('user_sign_out', null);
+    } catch (e) {
+      print("Error signing out: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error signing out. Please try again.")),
+      );
+    }
   }
 
   @override
@@ -305,7 +373,8 @@ class _MainScreenState extends State<MainScreen> {
       ),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
+          padding:
+          const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -369,12 +438,14 @@ class _MainScreenState extends State<MainScreen> {
                       Column(
                         children: [
                           IconButton(
-                            icon: Icon(Icons.photo_camera, size: 40, color: Color(0xFFE17055)),
+                            icon: Icon(Icons.photo_camera,
+                                size: 40, color: Color(0xFFE17055)),
                             onPressed: () => _pickImage(ImageSource.camera),
                           ),
                           Text(
                             "Take Photo",
-                            style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
+                            style: TextStyle(
+                                color: Color(0xFF8D6E63), fontSize: 14),
                           ),
                         ],
                       ),
@@ -382,12 +453,14 @@ class _MainScreenState extends State<MainScreen> {
                       Column(
                         children: [
                           IconButton(
-                            icon: Icon(Icons.photo_library, size: 40, color: Color(0xFFE17055)),
+                            icon: Icon(Icons.photo_library,
+                                size: 40, color: Color(0xFFE17055)),
                             onPressed: () => _pickImage(ImageSource.gallery),
                           ),
                           Text(
                             "Upload from Gallery",
-                            style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
+                            style: TextStyle(
+                                color: Color(0xFF8D6E63), fontSize: 14),
                           ),
                         ],
                       ),
@@ -395,12 +468,14 @@ class _MainScreenState extends State<MainScreen> {
                       Column(
                         children: [
                           IconButton(
-                            icon: Icon(Icons.check_circle, size: 40, color: Color(0xFFE17055)),
+                            icon: Icon(Icons.check_circle,
+                                size: 40, color: Color(0xFFE17055)),
                             onPressed: _verifyAndUploadImage,
                           ),
                           Text(
                             "Verify",
-                            style: TextStyle(color: Color(0xFF8D6E63), fontSize: 14),
+                            style: TextStyle(
+                                color: Color(0xFF8D6E63), fontSize: 14),
                           ),
                         ],
                       ),
@@ -415,6 +490,7 @@ class _MainScreenState extends State<MainScreen> {
         selectedItemColor: Color(0xFFE17055),
         unselectedItemColor: Color(0xFF8D6E63),
         currentIndex: 0,
+        type: BottomNavigationBarType.fixed, // Ensure all items are shown
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
