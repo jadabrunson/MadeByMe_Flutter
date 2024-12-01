@@ -66,7 +66,6 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
       }
     } catch (error) {
       print("Failed to fetch leaderboard data: $error");
-      // Optionally, you can show a SnackBar or other UI feedback here
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Failed to load leaderboard. Please try again later."),
@@ -80,14 +79,11 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
     return email.contains("@") ? email.split("@")[0] : email;
   }
 
-  // Enhanced Logout Functionality with Confirmation Dialog
   Future<void> _logout() async {
     try {
       await _firebaseAuth.signOut();
-      // Navigate to the login screen after logout
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
-      // Handle errors if any
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error signing out. Please try again."),
@@ -98,7 +94,6 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
     }
   }
 
-  // Confirmation Dialog for Logout
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -110,13 +105,13 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
             TextButton(
               child: Text('Cancel'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
             ),
             TextButton(
               child: Text('Logout'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
                 _logout();
               },
             ),
@@ -213,13 +208,12 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
     );
   }
 
-  // Bottom Navigation Bar with Navigation Logic
   Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(
       backgroundColor: Color(0xFFF6E6CC),
       selectedItemColor: Color(0xFFE17055),
       unselectedItemColor: Color(0xFF8D6E63),
-      currentIndex: 1, // Set current index to Leaderboard
+      currentIndex: 1,
       items: [
         BottomNavigationBarItem(
           icon: Icon(Icons.home),
@@ -238,12 +232,12 @@ class _LeaderboardActivityState extends State<LeaderboardActivity> {
           label: "Reels",
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.flash_on), // Icon for PowerZone
+          icon: Icon(Icons.flash_on),
           label: "PowerZone",
         ),
       ],
       onTap: (index) {
-        if (index == 1) return; // Do nothing if tapped on the current page
+        if (index == 1) return;
 
         switch (index) {
           case 0:

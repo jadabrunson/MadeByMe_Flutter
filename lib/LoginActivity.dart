@@ -12,7 +12,7 @@ class _LoginActivityState extends State<LoginActivity> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool isLoading = false;
-  bool _isSignUpMode = false; // Toggle between Sign In and Sign Up modes
+  bool _isSignUpMode = false;
 
   @override
   void initState() {
@@ -21,10 +21,9 @@ class _LoginActivityState extends State<LoginActivity> {
   }
 
   Future<void> _checkUserLoggedIn() async {
-    await Firebase.initializeApp(); // Ensure Firebase is initialized
+    await Firebase.initializeApp();
     User? user = _firebaseAuth.currentUser;
     if (user != null) {
-      // Navigate to main screen if already signed in
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.pushReplacementNamed(context, '/main');
       });
@@ -33,7 +32,7 @@ class _LoginActivityState extends State<LoginActivity> {
 
   void _toggleMode() {
     setState(() {
-      _isSignUpMode = !_isSignUpMode; // Toggle the mode
+      _isSignUpMode = !_isSignUpMode;
     });
   }
 
@@ -96,7 +95,6 @@ class _LoginActivityState extends State<LoginActivity> {
         password: password,
       );
 
-      // Automatically log in after successful registration
       if (userCredential.user != null) {
         _showMessage("Registration successful!");
         Navigator.pushReplacementNamed(context, '/main');
@@ -127,7 +125,7 @@ class _LoginActivityState extends State<LoginActivity> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFFF8E7), // Warm Ivory
+      backgroundColor: Color(0xFFFFF8E7),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -139,7 +137,7 @@ class _LoginActivityState extends State<LoginActivity> {
                 'Welcome!',
                 style: TextStyle(
                   fontSize: 26,
-                  color: Color(0xFF5D4037), // Deep Brown
+                  color: Color(0xFF5D4037),
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
@@ -147,7 +145,7 @@ class _LoginActivityState extends State<LoginActivity> {
               SizedBox(height: 8),
               Text(
                 _isSignUpMode ? 'Sign up to get started' : 'Sign in to continue',
-                style: TextStyle(fontSize: 16, color: Color(0xFF8D6E63)), // Soft Brown
+                style: TextStyle(fontSize: 16, color: Color(0xFF8D6E63)),
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 32),
@@ -156,7 +154,7 @@ class _LoginActivityState extends State<LoginActivity> {
                 decoration: InputDecoration(
                   hintText: 'Email',
                   filled: true,
-                  fillColor: Color(0xFFF6E6CC), // Light Almond
+                  fillColor: Color(0xFFF6E6CC),
                   prefixIcon: Icon(Icons.email, color: Color(0xFF8D6E63)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -188,7 +186,7 @@ class _LoginActivityState extends State<LoginActivity> {
                   : ElevatedButton(
                 onPressed: _isSignUpMode ? _registerUser : _loginUser,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFE17055), // Burnt Orange
+                  backgroundColor: Color(0xFFE17055),
                   padding: EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),

@@ -12,7 +12,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // Initialize Google Mobile Ads SDK
   MobileAds.instance.initialize();
 
   runApp(MyApp());
@@ -25,25 +24,25 @@ class MyApp extends StatelessWidget {
       title: 'MadeByMe',
       theme: ThemeData(
         primarySwatch: Colors.orange,
-        scaffoldBackgroundColor: Color(0xFFFFF8E7), // Warm ivory background
+        scaffoldBackgroundColor: Color(0xFFFFF8E7),
         appBarTheme: AppBarTheme(
-          color: Color(0xFFE17055), // Burnt orange app bar
+          color: Color(0xFFE17055),
           iconTheme: IconThemeData(color: Colors.white),
         ),
         textTheme: TextTheme(
-          bodyLarge: TextStyle(color: Color(0xFF5D4037)), // Deep brown for primary text
-          bodyMedium: TextStyle(color: Color(0xFF8D6E63)), // Soft brown for secondary text
+          bodyLarge: TextStyle(color: Color(0xFF5D4037)),
+          bodyMedium: TextStyle(color: Color(0xFF8D6E63)),
         ),
       ),
       initialRoute: '/',
       routes: {
         '/': (context) => LoginActivity(),
-        '/login': (context) => LoginActivity(), // Added '/login' route
+        '/login': (context) => LoginActivity(),
         '/main': (context) => MainScreen(),
         '/leaderboard': (context) => LeaderboardActivity(),
         '/gallery': (context) => GalleryPage(),
         '/reels': (context) => ReelsPage(),
-        '/powerzone': (context) => PowerZone(), // Route for the PowerZone page
+        '/powerzone': (context) => PowerZone(),
         '/payment' : (context) => PowerZone(),
       },
     );

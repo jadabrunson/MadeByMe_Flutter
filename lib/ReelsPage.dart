@@ -1,6 +1,3 @@
-// lib/ReelsPage.dart
-
-// Import statements
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -8,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-/// InlineAd class to track ad load status
 class InlineAd {
   BannerAd bannerAd;
   bool isLoaded;
@@ -16,7 +12,6 @@ class InlineAd {
   InlineAd({required this.bannerAd, this.isLoaded = false});
 }
 
-/// AdReelCard widget for displaying inline banner ads as reels
 class AdReelCard extends StatelessWidget {
   final InlineAd? inlineAd;
 
@@ -25,7 +20,6 @@ class AdReelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (inlineAd == null || !inlineAd!.isLoaded) {
-      // Show a loading indicator or a placeholder
       return Container(
         color: Colors.black,
         alignment: Alignment.center,
@@ -37,7 +31,6 @@ class AdReelCard extends StatelessWidget {
       alignment: Alignment.center,
       child: Column(
         children: [
-          // Ad Attribution
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Text(
@@ -45,7 +38,6 @@ class AdReelCard extends StatelessWidget {
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
           ),
-          // Ad Content
           Container(
             width: inlineAd!.bannerAd.size.width.toDouble(),
             height: inlineAd!.bannerAd.size.height.toDouble(),
@@ -57,7 +49,6 @@ class AdReelCard extends StatelessWidget {
   }
 }
 
-/// ReelCard widget with buttons on the side
 class ReelCard extends StatefulWidget {
   final Map<String, dynamic> reel;
   final User currentUser;
@@ -112,9 +103,9 @@ class _ReelCardState extends State<ReelCard> {
 
     try {
       if (isLiked) {
-        await likesRef.child(currentUser.uid).remove(); // Unlike the image
+        await likesRef.child(currentUser.uid).remove();
       } else {
-        await likesRef.child(currentUser.uid).set(true); // Like the image
+        await likesRef.child(currentUser.uid).set(true);
       }
       setState(() {
         if (isLiked) {
@@ -124,7 +115,6 @@ class _ReelCardState extends State<ReelCard> {
         }
       });
 
-      // Log the like/unlike event
       await FirebaseAnalytics.instance.logEvent(
         name: isLiked ? 'image_unliked' : 'image_liked',
         parameters: _removeNullValues({
@@ -171,7 +161,6 @@ class _ReelCardState extends State<ReelCard> {
         });
       });
 
-      // Log the comment added event
       await FirebaseAnalytics.instance.logEvent(
         name: 'comment_added',
         parameters: _removeNullValues({
@@ -191,7 +180,6 @@ class _ReelCardState extends State<ReelCard> {
     }
   }
 
-  /// Helper function to remove null values from parameters
   Map<String, Object>? _removeNullValues(Map<String, Object?>? original) {
     if (original == null) return null;
     final filtered = <String, Object>{};
@@ -207,16 +195,14 @@ class _ReelCardState extends State<ReelCard> {
   Widget build(BuildContext context) {
     final isLiked = reelData["likes"][currentUser.uid] ?? false;
 
-    // Define a color that contrasts with both black and white backgrounds
-    Color iconColor = Color(0xFFE17055); // A shade of orange
+    Color iconColor = Color(0xFFE17055);
 
     return Stack(
       children: [
-        // Reel Image
         Center(
           child: Image.network(
             reelData["url"],
-            fit: BoxFit.contain, // Ensure the whole image is visible
+            fit: BoxFit.contain,
             width: double.infinity,
             height: double.infinity,
             filterQuality: FilterQuality.high,
@@ -237,7 +223,6 @@ class _ReelCardState extends State<ReelCard> {
             },
           ),
         ),
-        // Overlay Buttons and Likes
         Positioned(
           right: 10,
           bottom: 80,
@@ -246,7 +231,7 @@ class _ReelCardState extends State<ReelCard> {
             children: [
               IconButton(
                 icon: Icon(
-                  Icons.favorite, // Filled icon
+                  Icons.favorite,
                   color: isLiked ? Colors.red : iconColor,
                   size: 35,
                 ),
@@ -259,7 +244,7 @@ class _ReelCardState extends State<ReelCard> {
               SizedBox(height: 20),
               IconButton(
                 icon: Icon(
-                  Icons.chat_bubble, // Filled icon
+                  Icons.chat_bubble,
                   color: iconColor,
                   size: 35,
                 ),
@@ -272,13 +257,12 @@ class _ReelCardState extends State<ReelCard> {
               SizedBox(height: 20),
               IconButton(
                 icon: Icon(
-                  Icons.flag, // Filled icon
+                  Icons.flag,
                   color: iconColor,
                   size: 35,
                 ),
                 onPressed: () {
                   if (reelData["uid"] == currentUser.uid) {
-                    // Show a message that the user cannot report their own post
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text("You cannot report your own post."),
@@ -292,7 +276,7 @@ class _ReelCardState extends State<ReelCard> {
             ],
           ),
         ),
-        // Comments Section Overlay
+
         if (isCommentsVisible)
           Positioned(
             bottom: 0,
@@ -301,14 +285,12 @@ class _ReelCardState extends State<ReelCard> {
             top: 0,
             child: GestureDetector(
               onTap: () {
-                // Close the comments overlay when tapping outside
                 FocusScope.of(context).unfocus(); // Hide the keyboard
               },
               child: Container(
                 color: Colors.black.withOpacity(0.7),
                 child: Column(
                   children: [
-                    // Close Button
                     Align(
                       alignment: Alignment.topRight,
                       child: IconButton(
@@ -316,7 +298,6 @@ class _ReelCardState extends State<ReelCard> {
                         onPressed: toggleComments,
                       ),
                     ),
-                    // Comments List
                     Expanded(
                       child: reelData["comments"].isEmpty
                           ? Center(
@@ -387,7 +368,6 @@ class _ReelCardState extends State<ReelCard> {
                         },
                       ),
                     ),
-                    // Add Comment Field
                     Container(
                       color: Colors.black.withOpacity(0.8),
                       padding:
@@ -424,7 +404,7 @@ class _ReelCardState extends State<ReelCard> {
                                   _addComment(trimmedValue);
                                   commentController.clear();
                                   FocusScope.of(context)
-                                      .unfocus(); // Hide the keyboard
+                                      .unfocus();
                                 }
                               },
                             ),
@@ -442,7 +422,7 @@ class _ReelCardState extends State<ReelCard> {
                                 _addComment(comment);
                                 commentController.clear();
                                 FocusScope.of(context)
-                                    .unfocus(); // Hide the keyboard
+                                    .unfocus();
                               }
                             },
                           ),
@@ -459,42 +439,34 @@ class _ReelCardState extends State<ReelCard> {
   }
 }
 
-/// ReelsPage StatefulWidget
 class ReelsPage extends StatefulWidget {
   @override
   _ReelsPageState createState() => _ReelsPageState();
 }
 
 class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
-  // Firebase Instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final DatabaseReference _databaseRef =
   FirebaseDatabase.instance.ref().child("users");
   final DatabaseReference _featureFlagsRef =
   FirebaseDatabase.instance.ref().child("featureFlags");
 
-  // User and Data Variables
   User? currentUser;
   List<Map<String, dynamic>> reelsData = [];
   bool isLoading = true;
   PageController _pageController = PageController();
   Set<String> reportedImageIds = {};
 
-  // Firebase Analytics
   final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
 
-  // Banner Ad (Feature A)
   BannerAd? _bannerAd;
   bool _isBannerAdLoaded = false;
 
-  // Feature Flag
-  int adsFeatureFlag =
-  0; // 0: Banner Ads (Feature A), 1: Inline Banner Ads (Feature B)
+  // A/B Sprint 5 Testing: 0 = Method A (Permanent Ads), 1 = Method B (Occasional Ads)
+  int adsFeatureFlag = 0;
 
-  // Inline Banner Ads for Feature B
   Map<int, InlineAd> inlineBannerAds = {};
 
-  // Bottom Navigation Routes
   final Map<int, String> _routes = {
     0: '/main',
     1: '/leaderboard',
@@ -503,23 +475,22 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     4: '/powerzone',
   };
 
-  // Variables to track time spent on ReelsPage
   DateTime? _pageEnterTime;
   bool _isLogged = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // Add observer
+    WidgetsBinding.instance.addObserver(this);
     _initializeUser();
     _pageController.addListener(_pageListener);
-    _pageEnterTime = DateTime.now(); // Record entry time
+    _pageEnterTime = DateTime.now();
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // Remove observer
-    _logUsageTime(); // Log time on dispose
+    WidgetsBinding.instance.removeObserver(this);
+    _logUsageTime();
     _bannerAd?.dispose();
     inlineBannerAds.forEach((key, ad) {
       ad.bannerAd.dispose();
@@ -528,22 +499,18 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// Initializes the user session and loads necessary data.
   Future<void> _initializeUser() async {
     currentUser = _auth.currentUser;
     if (currentUser != null) {
       await _loadReportedImages();
       await _loadReels();
 
-      // Fetch user's group
       String userGroup = await _getUserGroup(currentUser!.uid);
 
-      // Fetch ads feature flag based on group
       await _fetchAdsFeatureFlag(userGroup);
 
-      // Load ads accordingly
       if (adsFeatureFlag == 0) {
-        _loadBannerAd(); // Load Banner Ad only if Feature A is active
+        _loadBannerAd();
       }
       setState(() {
         isLoading = false;
@@ -553,7 +520,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Fetches the user's group from Firebase.
   Future<String> _getUserGroup(String uid) async {
     try {
       DatabaseReference userRef =
@@ -562,19 +528,17 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
       if (snapshot.exists) {
         return snapshot.value.toString();
       } else {
-        return "default"; // Default group if not specified
+        return "default";
       }
     } catch (e) {
       print("Error fetching user group: $e");
-      return "default"; // Fallback to default group on error
+      return "default";
     }
   }
 
-  /// Fetches the ads feature flag based on the user's group.
   Future<void> _fetchAdsFeatureFlag(String group) async {
     try {
       if (group == "default") {
-        // Fetch global feature flags
         final snapshot = await _featureFlagsRef.child("ads").get();
         if (snapshot.exists) {
           setState(() {
@@ -582,19 +546,16 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
           });
           print("Global Ads Feature Flag: $adsFeatureFlag");
         } else {
-          // Initialize the ads feature flag with 0 if it doesn't exist
           await _featureFlagsRef.child("ads").set(0);
           setState(() {
             adsFeatureFlag = 0;
           });
           print("Global Ads Feature Flag initialized to 0");
         }
-        // Log the ad variant being used
         await _logEvent('ad_variant', _removeNullValues({
           'variant': adsFeatureFlag == 0 ? 'Feature A' : 'Feature B',
         }));
       } else {
-        // Fetch group-specific feature flags
         DatabaseReference groupRef =
         FirebaseDatabase.instance.ref().child("userGroups").child(group).child("ads");
         final snapshot = await groupRef.get();
@@ -604,7 +565,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
           });
           print("Group ($group) Ads Feature Flag: $adsFeatureFlag");
         } else {
-          // If group-specific flag doesn't exist, fallback to global
           final globalSnapshot = await _featureFlagsRef.child("ads").get();
           if (globalSnapshot.exists) {
             setState(() {
@@ -619,7 +579,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
             print("Fallback Global Ads Feature Flag initialized to 0");
           }
         }
-        // Log the ad variant being used
         await _logEvent('ad_variant', _removeNullValues({
           'variant': adsFeatureFlag == 0 ? 'Feature A' : 'Feature B',
           'group': group,
@@ -633,7 +592,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Loads the list of reported images from SharedPreferences.
   Future<void> _loadReportedImages() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -643,7 +601,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     });
   }
 
-  /// Fetches reels data from Firebase Realtime Database.
   Future<void> _loadReels() async {
     try {
       final usersSnapshot = await _databaseRef.get();
@@ -697,11 +654,10 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Loads a Banner Ad for Feature A.
   void _loadBannerAd() {
     _bannerAd = BannerAd(
       adUnitId:
-      'ca-app-pub-3940256099942544/6300978111', // Test Banner Ad Unit ID
+      'ca-app-pub-3940256099942544/6300978111',
       size: AdSize.banner,
       request: AdRequest(),
       listener: BannerAdListener(
@@ -723,12 +679,11 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     _bannerAd!.load();
   }
 
-  /// Loads an Inline Banner Ad for a specific position.
   void _loadInlineBannerAd(int adIndex) {
     BannerAd inlineAd = BannerAd(
       adUnitId:
-      'ca-app-pub-3940256099942544/6300978111', // Test Banner Ad Unit ID
-      size: AdSize.mediumRectangle, // Adjust size as needed
+      'ca-app-pub-3940256099942544/6300978111',
+      size: AdSize.mediumRectangle,
       request: AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) async {
@@ -757,7 +712,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     inlineAd.load();
   }
 
-  /// Helper function to remove null values from parameters
   Map<String, Object>? _removeNullValues(Map<String, Object?>? original) {
     if (original == null) return null;
     final filtered = <String, Object>{};
@@ -769,12 +723,10 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     return filtered.isEmpty ? null : filtered;
   }
 
-  /// Listener for page changes to trigger ads.
   void _pageListener() {
     // Currently unused. Placeholder for future enhancements if needed.
   }
 
-  /// Logs events to Firebase Analytics.
   Future<void> _logEvent(
       String eventName, Map<String, Object>? parameters) async {
     try {
@@ -784,7 +736,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Builds the Banner Ad widget for Feature A.
   Widget _buildBannerAdWidget() {
     if (!_isBannerAdLoaded) return SizedBox.shrink();
     return Container(
@@ -795,7 +746,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     );
   }
 
-  /// Confirms user logout action.
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -807,7 +757,7 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
             TextButton(
               child: Text('Cancel'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop();
               },
             ),
             TextButton(
@@ -823,7 +773,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     );
   }
 
-  /// Handles the enhanced logout process.
   Future<void> _logoutEnhanced() async {
     try {
       await _auth.signOut();
@@ -846,7 +795,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Builds the Bottom Navigation Bar.
   Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(
       backgroundColor: Color(0xFFF6E6CC),
@@ -874,7 +822,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     );
   }
 
-  /// Displays the report options modal bottom sheet.
   void _showReportOptions(String uid, String imageId) {
     showModalBottomSheet(
       context: context,
@@ -919,13 +866,11 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     );
   }
 
-  /// Reports an image by adding it to the reported list and Firebase.
   Future<void> _reportImage(
       String uid, String imageId, String reason) async {
     if (currentUser == null) return;
 
     try {
-      // Find the reel before it's removed
       Map<String, dynamic>? reel = reelsData.firstWhere(
               (reel) => reel["uid"] == uid && reel["imageId"] == imageId,
           orElse: () => {});
@@ -934,14 +879,13 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
       setState(() {
         reelsData.removeWhere(
                 (reel) => reel["uid"] == uid && reel["imageId"] == imageId);
-        reportedImageIds.add(imageId); // Track reported image
+        reportedImageIds.add(imageId);
       });
 
       final prefs = await SharedPreferences.getInstance();
       prefs.setStringList(
           'reportedImages_${currentUser?.uid}', reportedImageIds.toList());
 
-      // Add the reported image to the "reported" node in Firebase
       DatabaseReference reportedRef =
       FirebaseDatabase.instance.ref().child("reported").push();
       await reportedRef.set({
@@ -971,7 +915,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Logs the time spent on the ReelsPage to Firebase Realtime Database.
   Future<void> _logUsageTime() async {
     if (_isLogged || currentUser == null || _pageEnterTime == null) return;
     _isLogged = true;
@@ -981,7 +924,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     String timestamp = now.toIso8601String();
     String userEmail = currentUser!.email ?? "unknown";
 
-    // Replace '.' with ',' to make it a valid Firebase key
     String sanitizedEmail = userEmail.replaceAll('.', ',');
 
     DatabaseReference usageLogsRef =
@@ -996,7 +938,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
         "Logged usage for $userEmail: $timeSpentSeconds seconds at $timestamp");
   }
 
-  /// Override to handle app lifecycle changes.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
@@ -1006,7 +947,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
     }
   }
 
-  /// Builds the Scaffold's body with reels and ads.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1050,10 +990,8 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
             : reelsData.length,
         itemBuilder: (context, index) {
           if (adsFeatureFlag == 1 && index % 6 == 5) {
-            // Every 6th item is an ad when adsFeatureFlag == 1
             int adIndex = index ~/ 6;
 
-            // Load ad if not already loaded
             if (!inlineBannerAds.containsKey(adIndex)) {
               _loadInlineBannerAd(adIndex);
             }
@@ -1064,7 +1002,6 @@ class _ReelsPageState extends State<ReelsPage> with WidgetsBindingObserver {
               inlineAd: inlineAd,
             );
           } else {
-            // Calculate the actual reel index
             int reelIndex =
             adsFeatureFlag == 1 ? index - (index ~/ 6) : index;
             final reel = reelsData[reelIndex];

@@ -32,11 +32,9 @@ class _MainScreenState extends State<MainScreen> {
   bool isUploading = false;
   bool verificationFailed = false;
 
-  // Feature flags
   bool isTakePhotoEnabled = true;
   bool isUploadFromGalleryEnabled = true;
 
-  // User group
   String userGroup = 'default';
 
   @override
@@ -53,7 +51,6 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _initializeFeatureFlags() async {
     try {
-      // Load global feature flags
       final takePhotoFlag = await _featureFlagRef.child("takePhoto").get();
       final uploadFromGalleryFlag =
       await _featureFlagRef.child("uploadFromGallery").get();
@@ -67,7 +64,6 @@ class _MainScreenState extends State<MainScreen> {
       bool finalTakePhoto = globalTakePhoto;
       bool finalUploadFromGallery = globalUploadFromGallery;
 
-      // If user is not in the default group, override with group feature flags
       if (userGroup != 'default') {
         final DatabaseReference groupFlagRef = FirebaseDatabase.instance
             .ref()
@@ -122,12 +118,11 @@ class _MainScreenState extends State<MainScreen> {
             maxStreak = userData["streaks"]?["maxStreak"] ?? 0;
             String? lastDate = userData["streaks"]?["lastUploadDate"];
             lastUploadDate = lastDate != null
-                ? DateTime.tryParse(lastDate + "T00:00:00") // Ensure valid format
+                ? DateTime.tryParse(lastDate + "T00:00:00")
                 : null;
             userGroup = userData["group"] ?? 'default';
           });
         } else {
-          // If user data doesn't exist, initialize with default values
           await _databaseRef.child(currentUser!.uid).set({
             "email": currentUser!.email,
             "group": "default",
@@ -185,7 +180,6 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
 
-      // Log streak update event
       await _logEvent('streak_updated', {
         'current_streak': streakCount,
         'max_streak': maxStreak,
@@ -205,7 +199,7 @@ class _MainScreenState extends State<MainScreen> {
           _imageFile = File(pickedFile.path);
           verificationFailed = false;
         });
-        // Log image pick event
+
         await _logEvent('image_picked', {
           'source': source == ImageSource.camera ? 'camera' : 'gallery',
         });
@@ -490,7 +484,7 @@ class _MainScreenState extends State<MainScreen> {
         selectedItemColor: Color(0xFFE17055),
         unselectedItemColor: Color(0xFF8D6E63),
         currentIndex: 0,
-        type: BottomNavigationBarType.fixed, // Ensure all items are shown
+        type: BottomNavigationBarType.fixed,
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -509,7 +503,7 @@ class _MainScreenState extends State<MainScreen> {
             label: "Reels",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.flash_on), // Icon for PowerZone
+            icon: Icon(Icons.flash_on),
             label: "PowerZone",
           ),
         ],

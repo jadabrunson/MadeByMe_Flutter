@@ -10,12 +10,12 @@ class PowerZone extends StatefulWidget {
 }
 
 class _PowerZoneState extends State<PowerZone> {
-  RewardedAd? _rewardedAd; // Replace BannerAd with RewardedAd
-  bool _isRewardedAdLoaded = false; // Track if the Rewarded Ad is loaded
-  int _currentIndex = 4; // Set the initial index to PowerZone
-  double groupProgress = 0.0; // Initialize group progress at 0
-  int userContribution = 0; // Initialize user contribution at 0
-  final int targetMeals = 6; // Set target meals for 100% progress
+  RewardedAd? _rewardedAd;
+  bool _isRewardedAdLoaded = false;
+  int _currentIndex = 4;
+  double groupProgress = 0.0;
+  int userContribution = 0;
+  final int targetMeals = 6;
   final DatabaseReference _challengeRef =
   FirebaseDatabase.instance.ref().child("weeklyChallenge");
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
@@ -24,7 +24,7 @@ class _PowerZoneState extends State<PowerZone> {
     id: 'remove_ads',
     title: 'Remove Ads',
     description: 'Remove all ads from the app',
-    price: '\$5.00', // Mock price
+    price: '\$5.00',
     rawPrice: 5.00,
     currencyCode: 'USD',
   );
@@ -34,15 +34,14 @@ class _PowerZoneState extends State<PowerZone> {
   User? currentUser;
   static const Set<String> _productIds = {'remove_ads'};
 
-  // Define the test Rewarded Ad Unit ID
   static const String rewardedAdUnitId =
-      'ca-app-pub-3940256099942544/5224354917'; // Test Rewarded Ad Unit ID
+      'ca-app-pub-3940256099942544/5224354917';
 
   @override
   void initState() {
     super.initState();
     currentUser = _auth.currentUser;
-    _loadRewardedAd(); // Prepare the Rewarded Ad on initialization
+    _loadRewardedAd();
     _initializeData();
   }
 
@@ -60,14 +59,13 @@ class _PowerZoneState extends State<PowerZone> {
   void _buyProduct(ProductDetails product) {
     print("Simulating purchase for product: ${product.id}");
     setState(() {
-      _adRemoved = true; // Simulate removing ads
+      _adRemoved = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Purchase successful: ${product.title}")),
     );
   }
 
-  // Handle purchase updates
   void _handlePurchaseUpdates(List<PurchaseDetails> purchaseDetailsList) {
     for (final PurchaseDetails purchaseDetails in purchaseDetailsList) {
       if (purchaseDetails.status == PurchaseStatus.purchased) {
@@ -90,10 +88,9 @@ class _PowerZoneState extends State<PowerZone> {
     });
   }
 
-  // Load a Rewarded Ad for testing
   void _loadRewardedAd() {
     RewardedAd.load(
-      adUnitId: rewardedAdUnitId, // Use the correct test Rewarded Ad Unit ID
+      adUnitId: rewardedAdUnitId,
       request: AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
@@ -102,7 +99,7 @@ class _PowerZoneState extends State<PowerZone> {
             _isRewardedAdLoaded = true;
           });
           print('Rewarded Ad Loaded successfully');
-          _setRewardedAdCallbacks(); // Set callbacks for the loaded ad
+          _setRewardedAdCallbacks();
         },
         onAdFailedToLoad: (error) {
           print('RewardedAd failed to load: $error');
@@ -114,7 +111,6 @@ class _PowerZoneState extends State<PowerZone> {
     );
   }
 
-  // Set callbacks for the Rewarded Ad
   void _setRewardedAdCallbacks() {
     _rewardedAd?.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
@@ -124,7 +120,7 @@ class _PowerZoneState extends State<PowerZone> {
           _rewardedAd = null;
           _isRewardedAdLoaded = false;
         });
-        _loadRewardedAd(); // Load a new ad for future use
+        _loadRewardedAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         print('Rewarded Ad failed to show: $error');
@@ -133,18 +129,16 @@ class _PowerZoneState extends State<PowerZone> {
           _rewardedAd = null;
           _isRewardedAdLoaded = false;
         });
-        _loadRewardedAd(); // Load a new ad for future use
+        _loadRewardedAd();
       },
     );
   }
 
-  // Initialize challenge data from Firebase
   Future<void> _initializeData() async {
     await _initializeGroupProgress();
     await _loadUserContribution();
   }
 
-  // Initialize or load group progress
   Future<void> _initializeGroupProgress() async {
     try {
       final contributionsSnapshot =
@@ -156,12 +150,10 @@ class _PowerZoneState extends State<PowerZone> {
             .fold(0, (sum, value) => sum + value);
 
         setState(() {
-          // Calculate progress based on target meals
           groupProgress = (totalContributions / targetMeals).clamp(0.0, 1.0);
         });
         print("Initial groupProgress loaded: ${groupProgress * 100}%");
       } else {
-        // If groupProgress doesn't exist, initialize it to 0
         setState(() {
           groupProgress = 0.0;
         });
@@ -172,7 +164,6 @@ class _PowerZoneState extends State<PowerZone> {
     }
   }
 
-  // Load initial user contribution
   Future<void> _loadUserContribution() async {
     if (currentUser != null) {
       try {
@@ -194,21 +185,20 @@ class _PowerZoneState extends State<PowerZone> {
     }
   }
 
-  // Show the Rewarded Ad when user clicks the button
   void _displayRewardedAd() {
     if (_rewardedAd != null) {
       _rewardedAd!.show(
         onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
           print('User earned reward: ${reward.amount} ${reward.type}');
-          _freezeStreak(); // Call streak freeze after earning the reward
+          _freezeStreak();
         },
       );
-      // After showing the ad, set the ad to null and load a new one
+
       setState(() {
         _rewardedAd = null;
         _isRewardedAdLoaded = false;
       });
-      _loadRewardedAd(); // Load a new ad for future use
+      _loadRewardedAd();
     } else {
       print('Rewarded Ad is not loaded yet.');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -219,22 +209,17 @@ class _PowerZoneState extends State<PowerZone> {
     }
   }
 
-  // Logic to freeze the streak for the day
   void _freezeStreak() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Your streak has been frozen for today!")),
     );
-    // You can also update Firebase or local state here as needed
   }
 
-  // Logout functionality
   Future<void> _logout() async {
     try {
       await _auth.signOut();
-      // Navigate to the login screen after logout
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
-      // Handle errors if any
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error signing out. Please try again."),
@@ -244,7 +229,6 @@ class _PowerZoneState extends State<PowerZone> {
     }
   }
 
-  // Confirmation dialog for logout
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -256,13 +240,13 @@ class _PowerZoneState extends State<PowerZone> {
             TextButton(
               child: Text('Cancel'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
             ),
             TextButton(
               child: Text('Logout'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
                 _logout();
               },
             ),
@@ -274,7 +258,7 @@ class _PowerZoneState extends State<PowerZone> {
 
   @override
   void dispose() {
-    _rewardedAd?.dispose(); // Dispose of the Rewarded Ad when done
+    _rewardedAd?.dispose();
     super.dispose();
   }
 
@@ -309,7 +293,6 @@ class _PowerZoneState extends State<PowerZone> {
             ),
             SizedBox(height: 20),
 
-            // Weekly Group Challenge Section
             _buildWeeklyChallengeCard(),
 
             SizedBox(height: 30),
@@ -339,8 +322,6 @@ class _PowerZoneState extends State<PowerZone> {
                   style: TextStyle(color: Color(0xFF8D6E63)),
                 ),
               ),
-
-            // Optionally, you can show a placeholder or additional UI elements here
           ],
         ),
       ),
@@ -348,7 +329,6 @@ class _PowerZoneState extends State<PowerZone> {
     );
   }
 
-  // Build the Weekly Challenge Card
   Widget _buildWeeklyChallengeCard() {
     return Card(
       color: Color(0xFFF6E6CC),
@@ -395,7 +375,7 @@ class _PowerZoneState extends State<PowerZone> {
       ),
     );
   }
-  // Bottom Navigation Bar with navigation logic
+
   Widget _buildBottomNavigationBar() {
     return BottomNavigationBar(
       backgroundColor: Color(0xFFF6E6CC),
@@ -412,7 +392,7 @@ class _PowerZoneState extends State<PowerZone> {
         BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: "PowerZone"),
       ],
       onTap: (index) {
-        if (index == _currentIndex) return; // Do nothing if tapped on the current page
+        if (index == _currentIndex) return;
 
         setState(() {
           _currentIndex = index;
@@ -432,7 +412,6 @@ class _PowerZoneState extends State<PowerZone> {
             Navigator.pushReplacementNamed(context, '/reels');
             break;
           case 4:
-          // Current page, no navigation needed
             break;
         }
       },

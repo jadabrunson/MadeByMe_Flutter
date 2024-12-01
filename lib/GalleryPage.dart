@@ -42,10 +42,8 @@ class _GalleryPageState extends State<GalleryPage> {
   Future<void> _logout() async {
     try {
       await _auth.signOut();
-      // Navigate to the login screen after logout
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
-      // Handle errors if any
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error signing out. Please try again."),
@@ -66,7 +64,7 @@ class _GalleryPageState extends State<GalleryPage> {
             TextButton(
               child: Text('Cancel'),
               onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
+                Navigator.of(context).pop();
               },
             ),
             TextButton(
@@ -109,7 +107,7 @@ class _GalleryPageState extends State<GalleryPage> {
           : GridView.builder(
         padding: EdgeInsets.all(8.0),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, // Number of images per row
+          crossAxisCount: 3,
           crossAxisSpacing: 8.0,
           mainAxisSpacing: 8.0,
         ),
@@ -137,10 +135,10 @@ class _GalleryPageState extends State<GalleryPage> {
         },
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color(0xFFF6E6CC), // Light Almond
-        selectedItemColor: Color(0xFFE17055), // Burnt Orange
-        unselectedItemColor: Color(0xFF8D6E63), // Soft Brown
-        currentIndex: 2, // Set current index to 2 for the gallery page
+        backgroundColor: Color(0xFFF6E6CC),
+        selectedItemColor: Color(0xFFE17055),
+        unselectedItemColor: Color(0xFF8D6E63),
+        currentIndex: 2,
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -159,21 +157,20 @@ class _GalleryPageState extends State<GalleryPage> {
             label: "Reels",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.bolt), // Icon for PowerZone
+            icon: Icon(Icons.bolt),
             label: "PowerZone",
           ),
         ],
         onTap: (index) {
           if (index == 0) {
-            Navigator.pushReplacementNamed(context, '/main'); // Navigate to Home page
+            Navigator.pushReplacementNamed(context, '/main');
           } else if (index == 1) {
-            Navigator.pushReplacementNamed(context, '/leaderboard'); // Navigate to Leaderboard page
+            Navigator.pushReplacementNamed(context, '/leaderboard');
           } else if (index == 3) {
-            Navigator.pushReplacementNamed(context, '/reels'); // Navigate to Reels page
+            Navigator.pushReplacementNamed(context, '/reels');
           } else if (index == 4) {
-            Navigator.pushReplacementNamed(context, '/powerzone'); // Navigate to PowerZone page
+            Navigator.pushReplacementNamed(context, '/powerzone');
           }
-          // No action needed for index 2 since it's the current page
         },
       ),
     );
